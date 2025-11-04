@@ -4,6 +4,11 @@ from tkinter import ttk, messagebox
 from auth_manager import AuthManager
 from config import Config
 from clientes_window import ClientesWindow
+from proveedores_window import ProveedoresWindow
+from impuestos_window import ImpuestosWindow
+from categorias_window import CategoriasWindow
+from marcas_window import MarcasWindow
+from productos_window import ProductosWindow
 import os
 from PIL import Image, ImageTk
 import sys
@@ -170,8 +175,13 @@ class MainApp:
         management_menu = tk.Menu(menubar, tearoff=0)
         management_menu.add_command(label="👥 Clientes", command=self.show_clientes)
         management_menu.add_command(label="🏢 Proveedores", command=self.show_proveedores)
+        management_menu.add_separator()
         management_menu.add_command(label="📦 Productos", command=self.show_productos)
         management_menu.add_command(label="🔧 Servicios", command=self.show_servicios)
+        management_menu.add_separator()
+        management_menu.add_command(label="💰 Impuestos", command=self.show_impuestos)
+        management_menu.add_command(label="📑 Categorías", command=self.show_categorias)
+        management_menu.add_command(label="🏷️ Marcas", command=self.show_marcas)
         management_menu.add_separator()
         management_menu.add_command(label="💰 Presupuestos", command=self.show_presupuestos)
         menubar.add_cascade(label="📊 Gestión", menu=management_menu)
@@ -223,9 +233,11 @@ class MainApp:
         
         stats_data = [
             ("👥 Clientes", "15", "#3498db"),
-            ("📦 Productos", "42", "#e74c3c"), 
-            ("💰 Presupuestos", "8", "#27ae60"),
-            ("🏢 Proveedores", "6", "#f39c12")
+            ("🏢 Proveedores", "6", "#f39c12"),
+            ("💰 Impuestos", "3", "#9b59b6"),
+            ("📑 Categorías", "8", "#e74c3c"),
+            ("🏷️ Marcas", "5", "#27ae60"),
+            ("📦 Productos", "42", "#1abc9c")
         ]
         
         for i, (title, value, color) in enumerate(stats_data):
@@ -243,9 +255,11 @@ class MainApp:
         
         action_buttons = [
             ("👥 Gestión de Clientes", self.show_clientes, "#3498db"),
-            ("📦 Gestión de Productos", self.show_productos, "#e74c3c"),
-            ("💰 Crear Presupuesto", self.show_presupuestos, "#27ae60"),
-            ("🏢 Gestión de Proveedores", self.show_proveedores, "#f39c12")
+            ("🏢 Gestión de Proveedores", self.show_proveedores, "#f39c12"),
+            ("💰 Gestión de Impuestos", self.show_impuestos, "#9b59b6"),
+            ("📑 Gestión de Categorías", self.show_categorias, "#e74c3c"),
+            ("🏷️ Gestión de Marcas", self.show_marcas, "#27ae60"),
+            ("📦 Gestión de Productos", self.show_productos, "#1abc9c")
         ]
         
         for text, command, color in action_buttons:
@@ -256,36 +270,30 @@ class MainApp:
                 width=22
             )
             btn.pack(side=tk.LEFT, padx=8)
+    # MÉTODOS PARA LOS MÓDULOS
+    def show_impuestos(self):
+        """Abrir ventana de gestión de impuestos"""
+        ImpuestosWindow(self.window)
+   
+    def show_categorias(self):
+        """Abrir ventana de gestión de categorías"""
+        CategoriasWindow(self.window)
+   
+    def show_marcas(self):
+        """Abrir ventana de gestión de marcas"""
+        MarcasWindow(self.window)
     
     def show_clientes(self):
         """Abrir ventana de gestión de clientes"""
         ClientesWindow(self.window)
     
     def show_proveedores(self):
-        self.clear_main_frame()
-        content_frame = ttk.Frame(self.main_frame)
-        content_frame.pack(expand=True, fill=tk.BOTH, pady=50)
-        
-        ttk.Label(content_frame, text="🏢 Gestión de Proveedores", 
-                 font=("Arial", 20, "bold"), foreground="#f39c12").pack(pady=20)
-        ttk.Label(content_frame, text="Módulo en desarrollo - Próximamente...", 
-                 font=("Arial", 12), foreground="#7f8c8d").pack(pady=10)
-        
-        ttk.Button(content_frame, text="⬅️ Volver al Dashboard", 
-                  command=self.show_dashboard).pack(pady=20)
+        """Abrir ventana de gestión de proveedores"""
+        ProveedoresWindow(self.window)
     
     def show_productos(self):
-        self.clear_main_frame()
-        content_frame = ttk.Frame(self.main_frame)
-        content_frame.pack(expand=True, fill=tk.BOTH, pady=50)
-        
-        ttk.Label(content_frame, text="📦 Gestión de Productos", 
-                 font=("Arial", 20, "bold"), foreground="#e74c3c").pack(pady=20)
-        ttk.Label(content_frame, text="Módulo en desarrollo - Próximamente...", 
-                 font=("Arial", 12), foreground="#7f8c8d").pack(pady=10)
-        
-        ttk.Button(content_frame, text="⬅️ Volver al Dashboard", 
-                  command=self.show_dashboard).pack(pady=20)
+        """Abrir ventana de gestión de productos"""
+        ProductosWindow(self.window)
     
     def show_servicios(self):
         self.clear_main_frame()
