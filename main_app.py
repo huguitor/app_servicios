@@ -10,6 +10,7 @@ from categorias_window import CategoriasWindow
 from marcas_window import MarcasWindow
 from productos_window import ProductosWindow
 from servicios_window import ServiciosWindow
+from presupuestos_window import PresupuestosWindow
 import os
 from PIL import Image, ImageTk
 import sys
@@ -391,18 +392,9 @@ class MainApp:
         ServiciosWindow(self.window)
    
     def show_presupuestos(self):
-        self.clear_main_frame()
-        content_frame = ttk.Frame(self.main_frame)
-        content_frame.pack(expand=True, fill=tk.BOTH, pady=50)
-       
-        ttk.Label(content_frame, text="💰 Gestión de Presupuestos",
-                 font=("Arial", 20, "bold"), foreground="#27ae60").pack(pady=20)
-        ttk.Label(content_frame, text="Módulo en desarrollo - Próximamente...",
-                 font=("Arial", 12), foreground="#7f8c8d").pack(pady=10)
-       
-        ttk.Button(content_frame, text="⬅️ Volver al Dashboard",
-                  command=self.show_dashboard).pack(pady=20)
-   
+        """Abrir ventana de gestión de presupuestos"""
+        PresupuestosWindow(self.window)  # <-- Ya no necesita import aquí porque está arriba
+    
     def clear_main_frame(self):
         for widget in self.main_frame.winfo_children():
             widget.destroy()

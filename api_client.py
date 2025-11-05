@@ -5,10 +5,11 @@ import json
 from tkinter import messagebox
 from config import Config
 
+
 class Endpoints:
     # Auth
     TOKEN = "/api/token/"
-    
+   
     # Data
     CLIENTES = "/clientes/"
     PROVEEDORES = "/proveedores/"
@@ -20,12 +21,13 @@ class Endpoints:
     MARCAS = "/marcas/"
     COMPROBANTES = "/comprobantes/"
 
+
 class APIClient:
     def __init__(self):
         self.session = requests.Session()
         self.token = None
         self.load_token()
-    
+   
     def load_token(self):
         """Cargar token desde archivo"""
         try:
@@ -38,7 +40,7 @@ class APIClient:
                     })
         except Exception as e:
             print(f"Error cargando token: {e}")
-    
+   
     def save_token(self, token):
         """Guardar token en archivo"""
         try:
@@ -50,7 +52,7 @@ class APIClient:
                 f.write(token)
         except Exception as e:
             print(f"Error guardando token: {e}")
-    
+   
     def clear_token(self):
         """Eliminar token"""
         self.token = None
@@ -60,7 +62,7 @@ class APIClient:
                 os.remove(Config.TOKEN_FILE)
         except:
             pass
-    
+   
     def login(self, username, password):
         """Iniciar sesión y obtener token"""
         try:
@@ -70,7 +72,7 @@ class APIClient:
                 data={'username': username, 'password': password},
                 timeout=Config.API_TIMEOUT
             )
-            
+           
             if response.status_code == 200:
                 token = response.json().get('token')
                 if token:
@@ -81,14 +83,14 @@ class APIClient:
             else:
                 error_msg = self._get_error_message(response)
                 return False, error_msg
-                
+               
         except requests.exceptions.ConnectionError:
             return False, "Error de conexión con el servidor"
         except requests.exceptions.Timeout:
             return False, "Timeout - Servidor no responde"
         except Exception as e:
             return False, f"Error inesperado: {str(e)}"
-    
+   
     def _get_error_message(self, response):
         """Obtener mensaje de error de la respuesta"""
         try:
@@ -103,7 +105,7 @@ class APIClient:
             return "Error de autenticación"
         except:
             return f"Error {response.status_code}: {response.text}"
-    
+   
     def test_connection(self):
         """Probar conexión con el servidor"""
         try:
@@ -114,7 +116,7 @@ class APIClient:
             return response.status_code in [200, 401, 403]
         except:
             return False
-    
+   
     def get(self, endpoint, params=None):
         """GET request"""
         try:
@@ -123,7 +125,7 @@ class APIClient:
             return self._handle_response(response)
         except Exception as e:
             return None, f"Error de conexión: {str(e)}"
-    
+   
     def post(self, endpoint, data):
         """POST request"""
         try:
@@ -132,7 +134,7 @@ class APIClient:
             return self._handle_response(response)
         except Exception as e:
             return None, f"Error de conexión: {str(e)}"
-    
+   
     def put(self, endpoint, data):
         """PUT request - Para actualizaciones completas"""
         try:
@@ -141,7 +143,7 @@ class APIClient:
             return self._handle_response(response)
         except Exception as e:
             return None, f"Error de conexión: {str(e)}"
-    
+   
     def patch(self, endpoint, data):
         """PATCH request - Para actualizaciones parciales"""
         try:
@@ -150,7 +152,7 @@ class APIClient:
             return self._handle_response(response)
         except Exception as e:
             return None, f"Error de conexión: {str(e)}"
-    
+   
     def delete(self, endpoint):
         """DELETE request"""
         try:
@@ -159,7 +161,7 @@ class APIClient:
             return self._handle_response(response)
         except Exception as e:
             return None, f"Error de conexión: {str(e)}"
-    
+   
     def _handle_response(self, response):
         """Manejar respuesta de la API"""
         if response.status_code in [200, 201]:
@@ -179,3 +181,4 @@ class APIClient:
                 return None, f"Error {response.status_code}: {error_data}"
             except:
                 return None, f"Error {response.status_code}: {response.text}"
+
