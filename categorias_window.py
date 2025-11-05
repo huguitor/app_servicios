@@ -1,3 +1,4 @@
+# /app_escritorio/categorias_window.py
 import tkinter as tk
 from tkinter import ttk, messagebox
 from categorias_manager import CategoriasManager
