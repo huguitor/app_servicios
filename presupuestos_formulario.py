@@ -7,6 +7,16 @@ from productos_manager import ProductosManager
 from servicios_manager import ServiciosManager
 import os
 from decimal import Decimal
+from datetime import datetime, timedelta
+
+# 🔥 IMPORTAR CALENDARIO
+try:
+    from tkcalendar import DateEntry
+    CALENDAR_AVAILABLE = True
+except ImportError:
+    CALENDAR_AVAILABLE = False
+    print("⚠️ tkcalendar no disponible. Usando campo de texto para fechas.")
+
 
 class FormularioPresupuesto:
     def __init__(self, parent, presupuestos_window, presupuesto_data, solo_lectura=False):
@@ -19,7 +29,7 @@ class FormularioPresupuesto:
         self.manager = PresupuestosManager()
         self.clientes_manager = ClientesManager()
         self.productos_manager = ProductosManager()
-        self.servicios_manager = ServiciosManager()
+        self.servicios_manager = ServiciosManager()  # 🔥 CORRECCIÓN: usar = en lugar de import
        
         self.clientes = []
         self.productos = []
@@ -57,15 +67,15 @@ class FormularioPresupuesto:
         else:
             # Para nuevo presupuesto, cargar condiciones por defecto
             default_condiciones = (
-                "Precios expresados en pesos Argentinos\n"
+                "Precios: Expresados en Pesos Argentinos\n"
                 "Plazo de entrega: Inmediata\n"
                 "Forma de Pago: 30 días\n"
-                "Mantenimiento de oferta: 15 días"
             )
             try:
                 self.condiciones_text.insert('1.0', default_condiciones)
             except Exception as e:
                 print(f"Error cargando condiciones por defecto: {e}")
+
 
     def center_window(self, width, height):
         screen_width = self.window.winfo_screenwidth()
@@ -73,6 +83,7 @@ class FormularioPresupuesto:
         x = (screen_width - width) // 2
         y = (screen_height - height) // 2
         self.window.geometry(f"{width}x{height}+{x}+{y}")
+
 
     def cargar_datos_combobox(self):
         """Cargar datos para los combobox"""
@@ -97,16 +108,17 @@ class FormularioPresupuesto:
             self.productos = []
             self.servicios = []
 
+
     def create_widgets(self):
         # Frame principal con scroll
         main_frame = ttk.Frame(self.window)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-       
+    
         # Cabecera del presupuesto
         header_frame = ttk.LabelFrame(main_frame, text="📋 Información del Presupuesto", padding="10")
         header_frame.pack(fill=tk.X, pady=(0, 10))
-       
-        # Cliente - 🔥 CORREGIDO: Guardar como atributo y cargar valores
+    
+        # Fila 0: Cliente y Fecha de validez
         ttk.Label(header_frame, text="Cliente:*").grid(row=0, column=0, sticky=tk.W, pady=5)
         
         # Crear el combobox y GUARDARLO como atributo
@@ -115,116 +127,145 @@ class FormularioPresupuesto:
         # 🔥 CARGAR VALORES después de crear el combobox
         nombres_clientes = [self.obtener_nombre_cliente(c) for c in self.clientes]
         self.cliente_combo['values'] = nombres_clientes
-        print(f"🔧 Combobox clientes cargado con {len(nombres_clientes)} opciones")
-        
+        print(f"🔧 Combobox clientes cargado con {len(nombres_clientes)} opciones")        
         self.cliente_combo.grid(row=0, column=1, sticky=tk.W+tk.E, pady=5, padx=(10, 0))
-       
-        # Estado (solo para edición, no para nuevo)
-        if not self.es_nuevo:
-            ttk.Label(header_frame, text="Estado:").grid(row=0, column=2, sticky=tk.W, pady=5, padx=(20, 0))
-            estado_combo = ttk.Combobox(header_frame, textvariable=self.estado_var, width=15, state="readonly")
-            estado_combo['values'] = ['borrador', 'enviado', 'aceptado', 'rechazado']
-            estado_combo.grid(row=0, column=3, sticky=tk.W, pady=5, padx=(10, 0))
-       
-        # IVA
+        
+        # 🔥 NUEVO: Fecha de validez - CORREGIR POSICIÓN
+        ttk.Label(header_frame, text="Válido hasta:").grid(row=0, column=2, sticky=tk.W, pady=5, padx=(20, 0))
+        
+        if CALENDAR_AVAILABLE:
+            # Usar DateEntry con calendario
+            fecha_default = datetime.now() + timedelta(days=30)
+            self.valido_hasta_calendar = DateEntry(
+                header_frame,
+                width=12,
+                background='darkblue',
+                foreground='white',
+                borderwidth=2,
+                date_pattern='dd/mm/yyyy',
+                mindate=datetime.now(),  # 🔥 CORRECCIÓN: era "minidate"
+                year=fecha_default.year,
+                month=fecha_default.month,
+                day=fecha_default.day
+            )
+            self.valido_hasta_calendar.grid(row=0, column=3, sticky=tk.W, pady=5, padx=(10, 0))
+        else:
+            # Usar Entry simple si no hay tkcalendar
+            self.valido_hasta_var = tk.StringVar(self.window)
+            fecha_default = (datetime.now() + timedelta(days=30)).strftime('%d/%m/%Y')  # 🔥 CORRECCIÓN: formato correcto
+            self.valido_hasta_var.set(fecha_default)
+            self.valido_hasta_entry = ttk.Entry(header_frame, textvariable=self.valido_hasta_var, width=12)
+            self.valido_hasta_entry.grid(row=0, column=3, sticky=tk.W, pady=5, padx=(10, 0))
+            ttk.Label(header_frame, text="(DD/MM/AAAA)", font=("Arial", 7)).grid(row=0, column=4, sticky=tk.W, pady=5, padx=(5, 0))
+
+        # Fila 1: IVA y Estado (solo para edición)
         ttk.Label(header_frame, text="% IVA:").grid(row=1, column=0, sticky=tk.W, pady=5)
         iva_entry = ttk.Entry(header_frame, textvariable=self.iva_var, width=10)
         iva_entry.grid(row=1, column=1, sticky=tk.W, pady=5, padx=(10, 0))
-       
+        
+        # 🔥 CORREGIR: Estado en la misma fila que IVA
+        if not self.es_nuevo:
+            ttk.Label(header_frame, text="Estado:").grid(row=1, column=2, sticky=tk.W, pady=5, padx=(20, 0))
+            estado_combo = ttk.Combobox(header_frame, textvariable=self.estado_var, width=15, state="readonly")
+            estado_combo['values'] = ['borrador', 'enviado', 'aceptado', 'rechazado']
+            estado_combo.grid(row=1, column=3, sticky=tk.W, pady=5, padx=(10, 0))  # 🔥 MISMA FILA que IVA
+    
+        # Configurar grid weights para mejor distribución
+        header_frame.columnconfigure(1, weight=1)  # 🔥 Hacer que la columna del cliente se expanda
+    
         # Frame para items del presupuesto
         items_frame = ttk.LabelFrame(main_frame, text="🛒 Ítems del Presupuesto", padding="10")
         items_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
-       
+    
         # Toolbar para items
         items_toolbar = ttk.Frame(items_frame)
         items_toolbar.pack(fill=tk.X, pady=(0, 10))
-       
+    
         if not self.solo_lectura:
             ttk.Button(items_toolbar, text="➕ Agregar Producto",
-                      command=self.agregar_producto).pack(side=tk.LEFT, padx=5)
+                    command=self.agregar_producto).pack(side=tk.LEFT, padx=5)
             ttk.Button(items_toolbar, text="➕ Agregar Servicio",
-                      command=self.agregar_servicio).pack(side=tk.LEFT, padx=5)
+                    command=self.agregar_servicio).pack(side=tk.LEFT, padx=5)
             ttk.Button(items_toolbar, text="🗑️ Eliminar Ítem",
-                      command=self.eliminar_item).pack(side=tk.LEFT, padx=5)
-       
+                    command=self.eliminar_item).pack(side=tk.LEFT, padx=5)
+    
         # Treeview para items
-        columns = ('tipo', 'codigo', 'descripcion', 'cantidad', 'precio', 'subtotal')
+        columns = ('codigo', 'descripcion', 'cantidad', 'precio', 'subtotal')
         self.tree_items = ttk.Treeview(items_frame, columns=columns, show='headings', height=8)
-       
+    
         # Configurar columnas
-        self.tree_items.heading('tipo', text='Tipo')
-        self.tree_items.heading('codigo', text='Código')
-        self.tree_items.heading('descripcion', text='Descripción')
-        self.tree_items.heading('cantidad', text='Cantidad')
-        self.tree_items.heading('precio', text='Precio Unit.')
-        self.tree_items.heading('subtotal', text='Subtotal')
-       
-        self.tree_items.column('tipo', width=80)
-        self.tree_items.column('codigo', width=100)
+        self.tree_items.heading('codigo', text='Código', anchor='center')
+        self.tree_items.heading('descripcion', text='Descripción', anchor='center')
+        self.tree_items.heading('cantidad', text='Cantidad', anchor='center')
+        self.tree_items.heading('precio', text='Precio Unit.', anchor='center')
+        self.tree_items.heading('subtotal', text='Subtotal', anchor='center')
+    
+        self.tree_items.column('codigo', width=100, anchor='center')
         self.tree_items.column('descripcion', width=250)
-        self.tree_items.column('cantidad', width=70)
-        self.tree_items.column('precio', width=90)
-        self.tree_items.column('subtotal', width=90)
-       
+        self.tree_items.column('cantidad', width=70, anchor='center')
+        self.tree_items.column('precio', width=90, anchor='e')
+        self.tree_items.column('subtotal', width=90, anchor='e')
+    
         # Scrollbar para items
         scrollbar_items = ttk.Scrollbar(items_frame, orient=tk.VERTICAL, command=self.tree_items.yview)
         self.tree_items.configure(yscroll=scrollbar_items.set)
         scrollbar_items.pack(side=tk.RIGHT, fill=tk.Y)
         self.tree_items.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-       
+    
         # Bind eventos para items
         if not self.solo_lectura:
             self.tree_items.bind('<Double-1>', self.editar_item)
-       
+    
         # Frame para observaciones y condiciones
         notes_frame = ttk.Frame(main_frame)
         notes_frame.pack(fill=tk.X, pady=(0, 10))
-       
+    
         # Observaciones
         obs_frame = ttk.LabelFrame(notes_frame, text="📝 Observaciones", padding="5")
         obs_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
         self.observaciones_text = tk.Text(obs_frame, width=40, height=4)
         self.observaciones_text.pack(fill=tk.BOTH, expand=True)
-       
+    
         # Condiciones comerciales
         cond_frame = ttk.LabelFrame(notes_frame, text="📄 Condiciones Comerciales", padding="5")
         cond_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(5, 0))
         self.condiciones_text = tk.Text(cond_frame, width=40, height=4)
         self.condiciones_text.pack(fill=tk.BOTH, expand=True)
-       
+    
         # Frame para totales
         totals_frame = ttk.LabelFrame(main_frame, text="💰 Totales", padding="10")
         totals_frame.pack(fill=tk.X, pady=(0, 10))
-       
+    
         ttk.Label(totals_frame, text="Subtotal:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
         ttk.Label(totals_frame, textvariable=self.subtotal_var,
-                 font=("Arial", 10, "bold")).grid(row=0, column=1, sticky=tk.W)
-       
+                font=("Arial", 10, "bold")).grid(row=0, column=1, sticky=tk.W)
+    
         ttk.Label(totals_frame, text="IVA:").grid(row=0, column=2, sticky=tk.W, padx=(20, 10))
         ttk.Label(totals_frame, textvariable=self.iva_valor_var,
-                 font=("Arial", 10, "bold")).grid(row=0, column=3, sticky=tk.W)
-       
+                font=("Arial", 10, "bold")).grid(row=0, column=3, sticky=tk.W)
+    
         ttk.Label(totals_frame, text="TOTAL:").grid(row=0, column=4, sticky=tk.W, padx=(20, 10))
         ttk.Label(totals_frame, textvariable=self.total_var,
-                 font=("Arial", 12, "bold"), foreground="red").grid(row=0, column=5, sticky=tk.W)
-       
+                font=("Arial", 12, "bold"), foreground="red").grid(row=0, column=5, sticky=tk.W)
+    
         # Botones
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill=tk.X)
-       
+    
         if self.solo_lectura:
             ttk.Button(button_frame, text="⬅️ Volver",
-                      command=self.window.destroy).pack(side=tk.LEFT, padx=5)
+                    command=self.window.destroy).pack(side=tk.LEFT, padx=5)
         else:
             ttk.Button(button_frame, text="💾 Guardar Presupuesto",
-                      command=self.guardar).pack(side=tk.LEFT, padx=5)
+                    command=self.guardar).pack(side=tk.LEFT, padx=5)
             ttk.Button(button_frame, text="❌ Cancelar",
-                      command=self.window.destroy).pack(side=tk.LEFT, padx=5)
-       
+                    command=self.window.destroy).pack(side=tk.LEFT, padx=5)
+    
         # Configurar grid weights
         header_frame.columnconfigure(1, weight=1)
         notes_frame.columnconfigure(0, weight=1)
         notes_frame.columnconfigure(1, weight=1)
+
 
     def obtener_nombre_cliente(self, cliente):
         """Obtener nombre completo del cliente"""
@@ -234,6 +275,7 @@ class FormularioPresupuesto:
             return f"{cliente['nombre']} {cliente['apellido'] or ''}".strip()
         else:
             return cliente['nombre']
+
 
     def cargar_datos(self):
         """Cargar datos del presupuesto en el formulario"""
@@ -252,6 +294,28 @@ class FormularioPresupuesto:
                 self.cliente_var.set(self.obtener_nombre_cliente(cliente))
                 break
         
+        # 🔥 CARGAR FECHA DE VALIDEZ - CONVERSIÓN DE FORMATO
+        valido_hasta = self.presupuesto_data.get('valido_hasta')
+        if valido_hasta:
+            try:
+                # Convertir de YYYY-MM-DD a DD/MM/YYYY
+                if 'T' in valido_hasta:
+                    valido_hasta = valido_hasta.split('T')[0]
+                
+                fecha_obj = datetime.strptime(valido_hasta, '%Y-%m-%d')
+                fecha_formateada = fecha_obj.strftime('%d/%m/%Y')
+                
+                if CALENDAR_AVAILABLE:
+                    self.valido_hasta_calendar.set_date(fecha_obj)
+                else:
+                    self.valido_hasta_var.set(fecha_formateada)
+                    
+            except ValueError as e:
+                print(f"⚠️ Error convirtiendo fecha: {e}")
+                # Si hay error, usar el valor original
+                if not CALENDAR_AVAILABLE:
+                    self.valido_hasta_var.set(valido_hasta)
+
         # Cargar estado
         self.estado_var.set(self.presupuesto_data.get('estado', 'borrador'))
         
@@ -293,6 +357,7 @@ class FormularioPresupuesto:
         # Actualizar totales
         self.actualizar_totales()
 
+
     def agregar_item_a_treeview(self, item):
         """Agregar un ítem al treeview"""
         tipo = "Producto" if item.get('producto') else "Servicio"
@@ -324,13 +389,13 @@ class FormularioPresupuesto:
         print(f"   Subtotal: {subtotal}")
         
         self.tree_items.insert('', tk.END, values=(
-            tipo,
             codigo,
             descripcion,
             cantidad,
             f"${precio_unitario:.2f}",
             f"${subtotal:.2f}"
         ))
+
 
     def agregar_producto(self):
         """Abrir diálogo para agregar producto"""
@@ -355,6 +420,7 @@ class FormularioPresupuesto:
             self.agregar_item_a_treeview(item)
             self.actualizar_totales()
 
+
     def agregar_servicio(self):
         """Abrir diálogo para agregar servicio"""
         if not self.cliente_var.get():
@@ -378,6 +444,7 @@ class FormularioPresupuesto:
             self.agregar_item_a_treeview(item)
             self.actualizar_totales()
 
+
     def eliminar_item(self):
         """Eliminar ítem seleccionado"""
         selection = self.tree_items.selection()
@@ -389,6 +456,7 @@ class FormularioPresupuesto:
         self.tree_items.delete(selection[0])
         self.items_presupuesto.pop(item_index)
         self.actualizar_totales()
+
 
     def editar_item(self, event):
         """Editar ítem seleccionado (cambiar cantidad)"""
@@ -412,6 +480,7 @@ class FormularioPresupuesto:
             self.tree_items.delete(selection[0])
             self.agregar_item_a_treeview(item)
             self.actualizar_totales()
+
 
     def actualizar_totales(self):
         """Calcular y actualizar totales"""
@@ -452,16 +521,64 @@ class FormularioPresupuesto:
         self.iva_valor_var.set(f"${iva_valor:.2f}")
         self.total_var.set(f"${total:.2f}")
 
+
+    def obtener_fecha_validez(self):
+        """Obtener fecha de validez en formato YYYY-MM-DD para la API"""
+        try:
+            if CALENDAR_AVAILABLE:
+                # Obtener fecha del calendario y convertir a YYYY-MM-DD
+                fecha_obj = self.valido_hasta_calendar.get_date()
+                return fecha_obj.strftime('%Y-%m-%d')
+            else:
+                # Convertir de DD/MM/YYYY a YYYY-MM-DD
+                fecha_str = self.valido_hasta_var.get()
+                fecha_obj = datetime.strptime(fecha_str, '%d/%m/%Y')
+                return fecha_obj.strftime('%Y-%m-%d')
+        except Exception as e:
+            print(f"⚠️ Error obteniendo fecha de validez: {e}")
+            return None
+
+
+    def validar_fecha_validez(self):
+        """Validar que la fecha de validez sea correcta"""
+        try:
+            if CALENDAR_AVAILABLE:
+                # El calendario ya valida la fecha
+                fecha_obj = self.valido_hasta_calendar.get_date()
+                if fecha_obj < datetime.now().date():
+                    messagebox.showerror("Error", "La fecha de validez no puede ser anterior a hoy")
+                    return False
+                return True
+            else:
+                # Validar formato DD/MM/YYYY
+                fecha_str = self.valido_hasta_var.get()
+                fecha_obj = datetime.strptime(fecha_str, '%d/%m/%Y')
+                if fecha_obj.date() < datetime.now().date():
+                    messagebox.showerror("Error", "La fecha de validez no puede ser anterior a hoy")
+                    return False
+                return True
+        except ValueError:
+            messagebox.showerror("Error", "Formato de fecha inválido. Use DD/MM/YYYY")
+            return False
+        except Exception as e:
+            print(f"Error validando fecha: {e}")
+            return False
+
+
     def validar_formulario(self):
         """Validar datos del formulario"""
         if not self.cliente_var.get():
             messagebox.showerror("Error", "Debe seleccionar un cliente")
             return False
-       
+        
         if not self.items_presupuesto:
             messagebox.showerror("Error", "El presupuesto debe tener al menos un ítem")
             return False
-       
+        
+        # Validar fecha de validez
+        if not self.validar_fecha_validez():
+            return False
+        
         try:
             iva = float(self.iva_var.get())
             if iva < 0:
@@ -470,14 +587,15 @@ class FormularioPresupuesto:
         except ValueError:
             messagebox.showerror("Error", "El IVA debe ser un número válido")
             return False
-       
+        
         return True
+
 
     def guardar(self):
         """Guardar presupuesto"""
         if not self.validar_formulario():
             return
-       
+        
         # Obtener ID del cliente seleccionado
         cliente_nombre = self.cliente_var.get()
         cliente_id = None
@@ -486,7 +604,7 @@ class FormularioPresupuesto:
             if nombre_completo == cliente_nombre:
                 cliente_id = cliente['id']
                 break
-       
+        
         if not cliente_id:
             messagebox.showerror("Error", "Cliente no válido")
             return
@@ -498,31 +616,34 @@ class FormularioPresupuesto:
         print(f"Estado seleccionado: {self.estado_var.get()}")
         print(f"Cliente ID: {cliente_id}")
         print(f"IVA: {self.iva_var.get()}")
+        print(f"Válido hasta: {self.obtener_fecha_validez()}")  # 🔥 USAR MÉTODO CORRECTO
         print(f"Cantidad de ítems: {len(self.items_presupuesto)}")
         
         for i, item in enumerate(self.items_presupuesto):
             print(f"Ítem {i}: {item}")
         print("=" * 50)
-       
-        # Preparar datos
+        
+        # Preparar datos - 🔥 INCLUIR FECHA DE VALIDEZ EN FORMATO API
         datos = {
             'cliente': cliente_id,
+            'valido_hasta': self.obtener_fecha_validez(),  # 🔥 USAR MÉTODO CORRECTO
             'observaciones': self.observaciones_text.get('1.0', tk.END).strip(),
             'condiciones_comerciales': self.condiciones_text.get('1.0', tk.END).strip(),
             'iva_porcentaje': float(self.iva_var.get()),
             'estado': self.estado_var.get(),
             'items': self.items_presupuesto
         }
-       
+        
         # Llamar al manager
         if self.es_nuevo:
             resultado = self.manager.crear_presupuesto(datos)
         else:
             resultado = self.manager.actualizar_presupuesto(self.presupuesto_data['id'], datos)
-       
+        
         if resultado:
             self.presupuestos_window.cargar_presupuestos()
             self.window.destroy()
+
 
 class DialogoSeleccionProducto:
     """Diálogo para seleccionar producto y cantidad"""
@@ -582,6 +703,7 @@ class DialogoSeleccionProducto:
    
     def cancelar(self):
         self.dialogo.destroy()
+
 
 class DialogoSeleccionServicio:
     """Diálogo para seleccionar servicio y cantidad"""
