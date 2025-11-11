@@ -333,7 +333,7 @@ class DialogoAdjunto(tk.Toplevel):
             encontrado = False
             for tipo in tipos_data:
                 if tipo.get('label') == tipo_label:
-                    codigo = tipo.get('codigo')
+                    codigo = tipo.get('valor')
                     print(f"   ✅ COINCIDENCIA EXACTA: '{tipo_label}' -> '{codigo}'")
                     encontrado = True
                     return codigo
