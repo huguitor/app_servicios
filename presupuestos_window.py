@@ -8,8 +8,11 @@ from servicios_manager import ServiciosManager
 import os
 from PIL import Image, ImageTk
 from presupuestos_formulario import FormularioPresupuesto
-# CORREGIDO: Importar la función correcta
 from pdf_generator import generar_presupuesto_pdf
+from dialogo_adjunto import DialogoAdjunto  # 👈 IMPORT CORRECTO
+
+
+
 
 class PresupuestosWindow:
     def __init__(self, parent):
@@ -24,6 +27,10 @@ class PresupuestosWindow:
         self.productos = []
         self.servicios = []
         self.presupuesto_seleccionado = None
+       
+        # Variables para ordenamiento
+        self.sort_column = None
+        self.sort_reverse = False
        
         # Crear ventana
         self.window = tk.Toplevel(parent)
@@ -52,6 +59,7 @@ class PresupuestosWindow:
         self.cargar_datos_combobox()
         self.cargar_presupuestos()
 
+
     def set_icon(self):
         """Configurar el icono en ventanas hijas"""
         icon_paths = [
@@ -77,12 +85,14 @@ class PresupuestosWindow:
                 except:
                     continue
 
+
     def center_window(self, width, height):
         screen_width = self.window.winfo_screenwidth()
         screen_height = self.window.winfo_screenheight()
         x = (screen_width - width) // 2
         y = (screen_height - height) // 2
         self.window.geometry(f"{width}x{height}+{x}+{y}")
+
 
     def cargar_datos_combobox(self):
         """Cargar datos para los combobox de filtros"""
@@ -101,6 +111,7 @@ class PresupuestosWindow:
             self.clientes = []
             self.productos = []
             self.servicios = []
+
 
     def create_widgets(self):
         # Frame principal
@@ -143,11 +154,18 @@ class PresupuestosWindow:
         button_frame = ttk.Frame(search_frame)
         button_frame.pack(side=tk.RIGHT)
        
-        ttk.Button(button_frame, text="➕ Nuevo Presupuesto", command=self.nuevo_presupuesto).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="✏️ Editar", command=self.editar_presupuesto).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="🖨️ PDF", command=self.generar_pdf).pack(side=tk.LEFT, padx=2)
-        ttk.Button(button_frame, text="🗑️ Eliminar", command=self.eliminar_presupuesto).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="🔄 Recargar", command=self.cargar_presupuestos).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="➕ Nuevo Presupuesto", 
+                  command=self.nuevo_presupuesto).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="✏️ Editar", 
+                  command=self.editar_presupuesto).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="📎 Adjuntos", 
+                  command=self.gestionar_adjuntos).pack(side=tk.LEFT, padx=2)  # 👈 NUEVO BOTÓN
+        ttk.Button(button_frame, text="🖨️ PDF", 
+                  command=self.generar_pdf).pack(side=tk.LEFT, padx=2)
+        ttk.Button(button_frame, text="🗑️ Eliminar", 
+                  command=self.eliminar_presupuesto).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="🔄 Recargar", 
+                  command=self.cargar_presupuestos).pack(side=tk.LEFT, padx=5)
        
         # Treeview para lista de presupuestos
         tree_frame = ttk.Frame(main_frame)
@@ -156,24 +174,21 @@ class PresupuestosWindow:
         columns = ('id', 'numero', 'cliente', 'fecha', 'subtotal', 'iva', 'total', 'estado')
         self.tree = ttk.Treeview(tree_frame, columns=columns, show='headings', height=20)
        
-        # Configurar columnas
-        self.tree.heading('id', text='ID')
-        self.tree.heading('numero', text='Número')
-        self.tree.heading('cliente', text='Cliente')
-        self.tree.heading('fecha', text='Fecha')
-        self.tree.heading('subtotal', text='Subtotal')
-        self.tree.heading('iva', text='IVA')
-        self.tree.heading('total', text='Total')
-        self.tree.heading('estado', text='Estado')
+        # Configurar columnas con bindings para ordenamiento
+        column_configs = [
+            ('id', 'ID', 50),
+            ('numero', 'Número', 80),
+            ('cliente', 'Cliente', 200),
+            ('fecha', 'Fecha', 100),
+            ('subtotal', 'Subtotal', 80),
+            ('iva', 'IVA', 80),
+            ('total', 'Total', 90),
+            ('estado', 'Estado', 90)
+        ]
        
-        self.tree.column('id', width=50)
-        self.tree.column('numero', width=80)
-        self.tree.column('cliente', width=200)
-        self.tree.column('fecha', width=100)
-        self.tree.column('subtotal', width=80)
-        self.tree.column('iva', width=80)
-        self.tree.column('total', width=90)
-        self.tree.column('estado', width=90)
+        for col_id, heading, width in column_configs:
+            self.tree.heading(col_id, text=heading, command=lambda c=col_id: self.ordenar_columnas(c))
+            self.tree.column(col_id, width=width)
        
         # Scrollbar
         scrollbar = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=self.tree.yview)
@@ -184,6 +199,58 @@ class PresupuestosWindow:
         # Bind eventos
         self.tree.bind('<<TreeviewSelect>>', self.seleccionar_presupuesto)
         self.tree.bind('<Double-1>', lambda e: self.ver_detalle())
+
+
+    def ordenar_columnas(self, column):
+        """Ordenar las columnas al hacer clic en el encabezado"""
+        # Si hacemos clic en la misma columna, invertir el orden
+        if self.sort_column == column:
+            self.sort_reverse = not self.sort_reverse
+        else:
+            self.sort_column = column
+            self.sort_reverse = False
+       
+        # Obtener todos los items del treeview
+        items = [(self.tree.set(item, column), item) for item in self.tree.get_children('')]
+       
+        # Determinar el tipo de datos para ordenar correctamente
+        if column in ['subtotal', 'iva', 'total']:
+            # Ordenar como moneda (remover $ y convertir a float)
+            items.sort(key=lambda x: float(x[0].replace('$', '').replace(',', '')), reverse=self.sort_reverse)
+        elif column == 'numero':
+            # Ordenar como número
+            items.sort(key=lambda x: int(x[0]) if x[0].isdigit() else 0, reverse=self.sort_reverse)
+        elif column == 'fecha':
+            # Ordenar como fecha (formato YYYY-MM-DD)
+            items.sort(key=lambda x: x[0], reverse=self.sort_reverse)
+        elif column == 'id':
+            # Ordenar como número
+            items.sort(key=lambda x: int(x[0]), reverse=self.sort_reverse)
+        else:
+            # Ordenar como texto
+            items.sort(key=lambda x: x[0].lower(), reverse=self.sort_reverse)
+       
+        # Reorganizar items en el treeview
+        for index, (_, item) in enumerate(items):
+            self.tree.move(item, '', index)
+       
+        # Actualizar indicadores visuales de ordenamiento
+        self.actualizar_indicadores_ordenamiento()
+
+
+    def actualizar_indicadores_ordenamiento(self):
+        """Actualizar los indicadores visuales en los encabezados de columna"""
+        for col in self.tree['columns']:
+            current_text = self.tree.heading(col)['text']
+            # Remover indicadores anteriores
+            if current_text.endswith(' ▲') or current_text.endswith(' ▼'):
+                current_text = current_text[:-2]
+           
+            # Agregar nuevo indicador si es la columna ordenada
+            if col == self.sort_column:
+                indicator = ' ▼' if self.sort_reverse else ' ▲'
+                self.tree.heading(col, text=current_text + indicator)
+
 
     def cargar_presupuestos(self, filtros=None):
         """Cargar lista de presupuestos"""
@@ -196,12 +263,14 @@ class PresupuestosWindow:
             self.presupuestos = []
             self.actualizar_treeview()
 
+
     def actualizar_filtros_combobox(self):
         """Actualizar los combobox de filtros con datos actualizados"""
         # Clientes
         clientes_nombres = ["Todos"] + [self.obtener_nombre_cliente(cliente_id) for cliente_id in
                                       list(set([p.get('cliente') for p in self.presupuestos if p.get('cliente')]))]
         self.cliente_filter['values'] = clientes_nombres
+
 
     def obtener_nombre_cliente(self, cliente_id):
         """Obtener nombre del cliente por ID"""
@@ -212,6 +281,7 @@ class PresupuestosWindow:
                 else:
                     return cliente['nombre']
         return "Cliente no encontrado"
+
 
     def actualizar_treeview(self):
         """Actualizar el treeview con los presupuestos"""
@@ -248,6 +318,11 @@ class PresupuestosWindow:
                 total_str,
                 estado_display
             ))
+       
+        # Restaurar ordenamiento si existe
+        if self.sort_column:
+            self.ordenar_columnas(self.sort_column)
+
 
     def seleccionar_presupuesto(self, event):
         """Manejar selección de presupuesto"""
@@ -259,11 +334,13 @@ class PresupuestosWindow:
                 (p for p in self.presupuestos if p['id'] == presupuesto_id), None
             )
 
+
     def buscar_presupuestos(self, event=None):
         """Buscar presupuestos en tiempo real"""
         texto_busqueda = self.search_var.get().lower()
         if len(texto_busqueda) >= 2 or texto_busqueda == "":
             self.aplicar_filtros()
+
 
     def aplicar_filtros(self, event=None):
         """Aplicar todos los filtros"""
@@ -297,9 +374,11 @@ class PresupuestosWindow:
        
         self.cargar_presupuestos(filtros)
 
+
     def nuevo_presupuesto(self):
         """Abrir formulario para nuevo presupuesto"""
         FormularioPresupuesto(self.window, self, None)
+
 
     def editar_presupuesto(self):
         """Abrir formulario para editar presupuesto seleccionado"""
@@ -308,6 +387,7 @@ class PresupuestosWindow:
             return
        
         FormularioPresupuesto(self.window, self, self.presupuesto_seleccionado)
+
 
     def eliminar_presupuesto(self):
         """Eliminar presupuesto seleccionado"""
@@ -323,6 +403,7 @@ class PresupuestosWindow:
         if confirmacion:
             if self.manager.eliminar_presupuesto(self.presupuesto_seleccionado['id']):
                 self.cargar_presupuestos()
+
 
     def generar_pdf(self):
         """Generar PDF del presupuesto seleccionado"""
@@ -355,3 +436,22 @@ class PresupuestosWindow:
             messagebox.showerror("Error", f"Error al importar generador PDF: {e}")
         except Exception as e:
             messagebox.showerror("Error", f"Error generando PDF: {e}")
+
+
+    def ver_detalle(self):
+        """Ver detalle del presupuesto seleccionado (solo lectura)"""
+        if not self.presupuesto_seleccionado:
+            messagebox.showwarning("Advertencia", "Por favor seleccione un presupuesto para ver el detalle")
+            return
+       
+        FormularioPresupuesto(self.window, self, self.presupuesto_seleccionado, solo_lectura=True)
+
+
+    def gestionar_adjuntos(self):
+        """Abrir ventana de gestión de adjuntos"""
+        if not self.presupuesto_seleccionado:
+            messagebox.showwarning("Advertencia", "Seleccione un presupuesto")
+            return
+       
+        # 👈 USANDO IMPORT CORRECTO
+        DialogoAdjunto(self.window, self.manager, self.presupuesto_seleccionado['id'])

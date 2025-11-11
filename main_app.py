@@ -1,4 +1,3 @@
-# app_escritorio/main_app.py
 import tkinter as tk
 from tkinter import ttk, messagebox
 from auth_manager import AuthManager
@@ -15,6 +14,7 @@ import os
 from PIL import Image, ImageTk
 import sys
 
+
 # Importar los managers para obtener datos reales
 from clientes_manager import ClientesManager
 from proveedores_manager import ProveedoresManager
@@ -23,13 +23,16 @@ from categorias_manager import CategoriasManager
 from marcas_manager import MarcasManager
 from productos_manager import ProductosManager
 from servicios_manager import ServiciosManager
+from presupuestos_manager import PresupuestosManager  # <-- AGREGAR ESTA IMPORTACIÓN
+
+
 
 
 class MainApp:
     def __init__(self):
         self.auth_manager = AuthManager()
         self.window = tk.Tk()
-        
+       
         # Inicializar managers para obtener datos reales
         self.clientes_manager = ClientesManager()
         self.proveedores_manager = ProveedoresManager()
@@ -38,7 +41,8 @@ class MainApp:
         self.marcas_manager = MarcasManager()
         self.productos_manager = ProductosManager()
         self.servicios_manager = ServiciosManager()
-        
+        self.presupuestos_manager = PresupuestosManager()  # <-- AGREGAR ESTA LÍNEA
+       
         self.setup_window()
         self.set_icon()
         self.set_theme()
@@ -180,6 +184,69 @@ class MainApp:
         except Exception as e:
             print(f"❌ Error configurando tema: {e}")
 
+    def get_presupuestos_stats(self):
+        """Obtener estadísticas detalladas de presupuestos"""
+        try:
+            # Obtener todos los presupuestos
+            presupuestos = self.presupuestos_manager.obtener_presupuestos()
+            
+            # Contadores por estado
+            total = len(presupuestos)
+            borrador = 0
+            enviado = 0
+            aceptado = 0
+            rechazado = 0
+            
+            # Calcular totales
+            subtotal_total = 0
+            iva_total = 0
+            total_general = 0
+            
+            for presupuesto in presupuestos:
+                estado = presupuesto.get('estado', 'borrador')
+                
+                if estado == 'borrador':
+                    borrador += 1
+                elif estado == 'enviado':
+                    enviado += 1
+                elif estado == 'aceptado':
+                    aceptado += 1
+                elif estado == 'rechazado':
+                    rechazado += 1
+                
+                # Acumular montos
+                subtotal_total += float(presupuesto.get('subtotal', 0))
+                iva_total += float(presupuesto.get('iva_valor', 0))
+                total_general += float(presupuesto.get('total', 0))
+            
+            # Calcular tasa de conversión
+            tasa_conversion = (aceptado / total * 100) if total > 0 else 0
+            
+            return {
+                "total": total,
+                "borrador": borrador,
+                "enviado": enviado,
+                "aceptado": aceptado,
+                "rechazado": rechazado,
+                "tasa_conversion": round(tasa_conversion, 1),
+                "subtotal_total": round(subtotal_total, 2),
+                "iva_total": round(iva_total, 2),
+                "total_general": round(total_general, 2)
+            }
+        except Exception as e:
+            print(f"❌ Error obteniendo estadísticas de presupuestos: {e}")
+            return {
+                "total": 0,
+                "borrador": 0,
+                "enviado": 0,
+                "aceptado": 0,
+                "rechazado": 0,
+                "tasa_conversion": 0,
+                "subtotal_total": 0,
+                "iva_total": 0,
+                "total_general": 0
+            }
+
     def get_real_stats(self):
         """Obtener estadísticas reales de la base de datos"""
         try:
@@ -191,7 +258,7 @@ class MainApp:
             marcas = self.marcas_manager.obtener_marcas()
             productos = self.productos_manager.obtener_productos()
             servicios = self.servicios_manager.obtener_servicios()
-            
+           
             # Filtrar solo los activos
             clientes_activos = [c for c in clientes if c.get('activo', True)]
             proveedores_activos = [p for p in proveedores if p.get('activo', True)]
@@ -200,7 +267,10 @@ class MainApp:
             marcas_activas = [m for m in marcas if m.get('activo', True)]
             productos_activos = [p for p in productos if p.get('activo', True)]
             servicios_activos = [s for s in servicios if s.get('activo', True)]
-            
+           
+            # Obtener estadísticas de presupuestos
+            presupuestos_stats = self.get_presupuestos_stats()
+           
             return {
                 "clientes": len(clientes_activos),
                 "proveedores": len(proveedores_activos),
@@ -208,7 +278,8 @@ class MainApp:
                 "categorias": len(categorias_activas),
                 "marcas": len(marcas_activas),
                 "productos": len(productos_activos),
-                "servicios": len(servicios_activos)
+                "servicios": len(servicios_activos),
+                "presupuestos": presupuestos_stats  # <-- AGREGAR ESTADÍSTICAS DE PRESUPUESTOS
             }
         except Exception as e:
             print(f"❌ Error obteniendo estadísticas reales: {e}")
@@ -220,7 +291,18 @@ class MainApp:
                 "categorias": 0,
                 "marcas": 0,
                 "productos": 0,
-                "servicios": 0
+                "servicios": 0,
+                "presupuestos": {
+                    "total": 0,
+                    "borrador": 0,
+                    "enviado": 0,
+                    "aceptado": 0,
+                    "rechazado": 0,
+                    "tasa_conversion": 0,
+                    "subtotal_total": 0,
+                    "iva_total": 0,
+                    "total_general": 0
+                }
             }
    
     def create_menu(self):
@@ -277,27 +359,31 @@ class MainApp:
    
     def show_dashboard(self):
         self.clear_main_frame()
-        
+       
         # Obtener estadísticas reales
         stats = self.get_real_stats()
+        presupuestos_stats = stats["presupuestos"]
        
         # Frame de bienvenida
         welcome_frame = ttk.Frame(self.main_frame)
-        welcome_frame.pack(expand=True, fill=tk.BOTH, pady=50)
+        welcome_frame.pack(expand=True, fill=tk.BOTH, pady=20)
        
         # Título principal
         ttk.Label(welcome_frame, text="🔧 Lab Servicios - Sistema de Gestión",
-                 font=("Arial", 24, "bold"), foreground="#2c3e50").pack(pady=20)
+                 font=("Arial", 24, "bold"), foreground="#2c3e50").pack(pady=10)
        
         ttk.Label(welcome_frame, text="Bienvenido al sistema de gestión integral",
-                 font=("Arial", 14), foreground="#7f8c8d").pack(pady=10)
+                 font=("Arial", 14), foreground="#7f8c8d").pack(pady=5)
        
         # Separador
         ttk.Separator(welcome_frame, orient='horizontal').pack(fill='x', pady=20, padx=50)
        
-        # Estadísticas REALES
+        # ========== SECCIÓN DE ESTADÍSTICAS GENERALES ==========
+        ttk.Label(welcome_frame, text="📊 Resumen General del Sistema",
+                 font=("Arial", 16, "bold"), foreground="#2c3e50").pack(pady=10)
+       
         stats_frame = ttk.Frame(welcome_frame)
-        stats_frame.pack(pady=30)
+        stats_frame.pack(pady=15)
        
         stats_data = [
             ("👥 Clientes", str(stats["clientes"]), "#3498db"),
@@ -311,16 +397,88 @@ class MainApp:
        
         for i, (title, value, color) in enumerate(stats_data):
             stat_frame = ttk.Frame(stats_frame)
-            stat_frame.grid(row=0, column=i, padx=10, sticky='nsew')
+            stat_frame.grid(row=0, column=i, padx=8, sticky='nsew')
            
-            ttk.Label(stat_frame, text=value, font=("Arial", 18, "bold"),
+            ttk.Label(stat_frame, text=value, font=("Arial", 16, "bold"),
                      foreground=color).pack()
             ttk.Label(stat_frame, text=title, font=("Arial", 9),
                      foreground="#7f8c8d").pack()
        
-        # Frame de acciones rápidas (2 filas para mejor distribución)
+        # ========== SECCIÓN DE PRESUPUESTOS ==========
+        ttk.Label(welcome_frame, text="💰 Gestión de Presupuestos",
+                 font=("Arial", 16, "bold"), foreground="#2c3e50").pack(pady=(30, 10))
+       
+        # Frame principal para presupuestos
+        presupuestos_main_frame = ttk.Frame(welcome_frame)
+        presupuestos_main_frame.pack(pady=10, fill=tk.X)
+       
+        # Estadísticas detalladas de presupuestos
+        presupuestos_stats_data = [
+            ("📋 Total", str(presupuestos_stats["total"]), "#2c3e50", "Todos los presupuestos"),
+            ("📝 Borrador", str(presupuestos_stats["borrador"]), "#f39c12", "Pendientes de envío"),
+            ("📤 Enviados", str(presupuestos_stats["enviado"]), "#3498db", "Enviados a clientes"),
+            ("✅ Aceptados", str(presupuestos_stats["aceptado"]), "#27ae60", "Aceptados por clientes"),
+            ("❌ Rechazados", str(presupuestos_stats["rechazado"]), "#e74c3c", "Rechazados por clientes"),
+            ("📈 Conversión", f"{presupuestos_stats['tasa_conversion']}%", "#9b59b6", "Tasa de aceptación")
+        ]
+       
+        # Crear 2 filas para las estadísticas de presupuestos
+        row1_frame = ttk.Frame(presupuestos_main_frame)
+        row1_frame.pack(pady=5)
+       
+        row2_frame = ttk.Frame(presupuestos_main_frame)
+        row2_frame.pack(pady=5)
+       
+        # Distribuir las tarjetas en 2 filas
+        for i, (title, value, color, tooltip) in enumerate(presupuestos_stats_data):
+            if i < 3:  # Primera fila
+                parent_frame = row1_frame
+            else:  # Segunda fila
+                parent_frame = row2_frame
+               
+            stat_card = ttk.Frame(parent_frame, relief="solid", borderwidth=1)
+            stat_card.pack(side=tk.LEFT, padx=8, pady=5, fill=tk.X, expand=True)
+            stat_card.configure(style="Card.TFrame")
+           
+            # Configurar estilo para la tarjeta
+            style = ttk.Style()
+            style.configure("Card.TFrame", background="white", relief="solid", borderwidth=1)
+           
+            # Contenido de la tarjeta
+            ttk.Label(stat_card, text=value, font=("Arial", 18, "bold"),
+                     foreground=color, background="white").pack(pady=(10, 2))
+            ttk.Label(stat_card, text=title, font=("Arial", 10),
+                     foreground="#7f8c8d", background="white").pack(pady=(0, 10))
+       
+        # ========== RESUMEN FINANCIERO ==========
+        if presupuestos_stats["total_general"] > 0:
+            ttk.Label(welcome_frame, text="💵 Resumen Financiero",
+                     font=("Arial", 14, "bold"), foreground="#2c3e50").pack(pady=(20, 10))
+           
+            financiero_frame = ttk.Frame(welcome_frame)
+            financiero_frame.pack(pady=10)
+           
+            financiero_data = [
+                ("Subtotal", f"${presupuestos_stats['subtotal_total']:,.2f}", "#34495e"),
+                ("IVA", f"${presupuestos_stats['iva_total']:,.2f}", "#7f8c8d"),
+                ("Total General", f"${presupuestos_stats['total_general']:,.2f}", "#27ae60")
+            ]
+           
+            for i, (title, value, color) in enumerate(financiero_data):
+                fin_frame = ttk.Frame(financiero_frame)
+                fin_frame.grid(row=0, column=i, padx=15, sticky='nsew')
+               
+                ttk.Label(fin_frame, text=value, font=("Arial", 12, "bold"),
+                         foreground=color).pack()
+                ttk.Label(fin_frame, text=title, font=("Arial", 9),
+                         foreground="#7f8c8d").pack()
+       
+        # ========== ACCIONES RÁPIDAS ==========
+        ttk.Label(welcome_frame, text="🚀 Acciones Rápidas",
+                 font=("Arial", 16, "bold"), foreground="#2c3e50").pack(pady=(30, 10))
+       
         actions_frame = ttk.Frame(welcome_frame)
-        actions_frame.pack(pady=40)
+        actions_frame.pack(pady=20)
        
         # Primera fila de botones
         action_buttons_row1 = [
@@ -393,8 +551,8 @@ class MainApp:
    
     def show_presupuestos(self):
         """Abrir ventana de gestión de presupuestos"""
-        PresupuestosWindow(self.window)  # <-- Ya no necesita import aquí porque está arriba
-    
+        PresupuestosWindow(self.window)
+   
     def clear_main_frame(self):
         for widget in self.main_frame.winfo_children():
             widget.destroy()

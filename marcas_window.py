@@ -1,8 +1,11 @@
+# /app_escritorio/marcas_window.py
 import tkinter as tk
 from tkinter import ttk, messagebox
 from marcas_manager import MarcasManager
 import os
 from PIL import Image, ImageTk
+
+
 
 
 class MarcasWindow:
@@ -11,6 +14,10 @@ class MarcasWindow:
         self.manager = MarcasManager()
         self.marcas = []
         self.marca_seleccionada = None
+        
+        # Variables para ordenamiento
+        self.sort_column = None
+        self.sort_reverse = False
        
         # Crear ventana
         self.window = tk.Toplevel(parent)
@@ -112,18 +119,18 @@ class MarcasWindow:
         columns = ('id', 'nombre', 'descripcion', 'activo', 'display_name')
         self.tree = ttk.Treeview(tree_frame, columns=columns, show='headings', height=15)
        
-        # Configurar columnas
-        self.tree.heading('id', text='ID')
-        self.tree.heading('nombre', text='Nombre')
-        self.tree.heading('descripcion', text='Descripción')
-        self.tree.heading('activo', text='Estado')
-        self.tree.heading('display_name', text='Nombre Display')
-       
-        self.tree.column('id', width=50)
-        self.tree.column('nombre', width=200)
-        self.tree.column('descripcion', width=250)
-        self.tree.column('activo', width=80)
-        self.tree.column('display_name', width=200)
+        # Configurar columnas con bindings para ordenamiento
+        column_configs = [
+            ('id', 'ID', 50),
+            ('nombre', 'Nombre', 200),
+            ('descripcion', 'Descripción', 250),
+            ('activo', 'Estado', 80),
+            ('display_name', 'Nombre Display', 200)
+        ]
+        
+        for col_id, heading, width in column_configs:
+            self.tree.heading(col_id, text=heading, command=lambda c=col_id: self.ordenar_columnas(c))
+            self.tree.column(col_id, width=width)
        
         # Scrollbar
         scrollbar = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=self.tree.yview)
@@ -134,6 +141,49 @@ class MarcasWindow:
         # Bind eventos
         self.tree.bind('<<TreeviewSelect>>', self.seleccionar_marca)
         self.tree.bind('<Double-1>', lambda e: self.editar_marca())
+    
+    def ordenar_columnas(self, column):
+        """Ordenar las columnas al hacer clic en el encabezado"""
+        # Si hacemos clic en la misma columna, invertir el orden
+        if self.sort_column == column:
+            self.sort_reverse = not self.sort_reverse
+        else:
+            self.sort_column = column
+            self.sort_reverse = False
+        
+        # Obtener todos los items del treeview
+        items = [(self.tree.set(item, column), item) for item in self.tree.get_children('')]
+        
+        # Determinar el tipo de datos para ordenar correctamente
+        if column in ['id']:
+            # Ordenar como número
+            items.sort(key=lambda x: int(x[0]) if x[0].isdigit() else 0, reverse=self.sort_reverse)
+        elif column == 'activo':
+            # Ordenar por estado (Activa/Inactiva)
+            items.sort(key=lambda x: x[0] == 'Activa', reverse=self.sort_reverse)
+        else:
+            # Ordenar como texto (nombre, descripción, display_name)
+            items.sort(key=lambda x: x[0].lower(), reverse=self.sort_reverse)
+        
+        # Reorganizar items en el treeview
+        for index, (_, item) in enumerate(items):
+            self.tree.move(item, '', index)
+        
+        # Actualizar indicadores visuales de ordenamiento
+        self.actualizar_indicadores_ordenamiento()
+
+    def actualizar_indicadores_ordenamiento(self):
+        """Actualizar los indicadores visuales en los encabezados de columna"""
+        for col in self.tree['columns']:
+            current_text = self.tree.heading(col)['text']
+            # Remover indicadores anteriores
+            if current_text.endswith(' ▲') or current_text.endswith(' ▼'):
+                current_text = current_text[:-2]
+            
+            # Agregar nuevo indicador si es la columna ordenada
+            if col == self.sort_column:
+                indicator = ' ▼' if self.sort_reverse else ' ▲'
+                self.tree.heading(col, text=current_text + indicator)
    
     def cargar_marcas(self, filtros=None):
         """Cargar lista de marcas"""
@@ -157,6 +207,10 @@ class MarcasWindow:
                 estado_display,
                 marca['display_name']
             ))
+        
+        # Restaurar ordenamiento si existe
+        if self.sort_column:
+            self.ordenar_columnas(self.sort_column)
    
     def seleccionar_marca(self, event):
         """Manejar selección de marca"""
@@ -218,6 +272,8 @@ class MarcasWindow:
         if confirmacion:
             if self.manager.eliminar_marca(self.marca_seleccionada['id']):
                 self.cargar_marcas()
+
+
 
 
 class FormularioMarca:

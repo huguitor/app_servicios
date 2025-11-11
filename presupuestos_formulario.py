@@ -29,7 +29,7 @@ class FormularioPresupuesto:
         self.manager = PresupuestosManager()
         self.clientes_manager = ClientesManager()
         self.productos_manager = ProductosManager()
-        self.servicios_manager = ServiciosManager()  # 🔥 CORRECCIÓN: usar = en lugar de import
+        self.servicios_manager = ServiciosManager()
        
         self.clientes = []
         self.productos = []
@@ -143,7 +143,7 @@ class FormularioPresupuesto:
                 foreground='white',
                 borderwidth=2,
                 date_pattern='dd/mm/yyyy',
-                mindate=datetime.now(),  # 🔥 CORRECCIÓN: era "minidate"
+                mindate=datetime.now(),
                 year=fecha_default.year,
                 month=fecha_default.month,
                 day=fecha_default.day
@@ -152,7 +152,7 @@ class FormularioPresupuesto:
         else:
             # Usar Entry simple si no hay tkcalendar
             self.valido_hasta_var = tk.StringVar(self.window)
-            fecha_default = (datetime.now() + timedelta(days=30)).strftime('%d/%m/%Y')  # 🔥 CORRECCIÓN: formato correcto
+            fecha_default = (datetime.now() + timedelta(days=30)).strftime('%d/%m/%Y')
             self.valido_hasta_var.set(fecha_default)
             self.valido_hasta_entry = ttk.Entry(header_frame, textvariable=self.valido_hasta_var, width=12)
             self.valido_hasta_entry.grid(row=0, column=3, sticky=tk.W, pady=5, padx=(10, 0))
@@ -168,10 +168,10 @@ class FormularioPresupuesto:
             ttk.Label(header_frame, text="Estado:").grid(row=1, column=2, sticky=tk.W, pady=5, padx=(20, 0))
             estado_combo = ttk.Combobox(header_frame, textvariable=self.estado_var, width=15, state="readonly")
             estado_combo['values'] = ['borrador', 'enviado', 'aceptado', 'rechazado']
-            estado_combo.grid(row=1, column=3, sticky=tk.W, pady=5, padx=(10, 0))  # 🔥 MISMA FILA que IVA
+            estado_combo.grid(row=1, column=3, sticky=tk.W, pady=5, padx=(10, 0))
     
         # Configurar grid weights para mejor distribución
-        header_frame.columnconfigure(1, weight=1)  # 🔥 Hacer que la columna del cliente se expanda
+        header_frame.columnconfigure(1, weight=1)
     
         # Frame para items del presupuesto
         items_frame = ttk.LabelFrame(main_frame, text="🛒 Ítems del Presupuesto", padding="10")
@@ -248,7 +248,7 @@ class FormularioPresupuesto:
         ttk.Label(totals_frame, textvariable=self.total_var,
                 font=("Arial", 12, "bold"), foreground="red").grid(row=0, column=5, sticky=tk.W)
     
-        # Botones
+        # Botones - CORREGIDO: SIN DUPLICACIÓN Y SIN CÓDIGO SUELTO
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill=tk.X)
     
@@ -258,6 +258,8 @@ class FormularioPresupuesto:
         else:
             ttk.Button(button_frame, text="💾 Guardar Presupuesto",
                     command=self.guardar).pack(side=tk.LEFT, padx=5)
+            ttk.Button(button_frame, text="📎 Adjuntos",
+                    command=self.gestionar_adjuntos).pack(side=tk.LEFT, padx=5)
             ttk.Button(button_frame, text="❌ Cancelar",
                     command=self.window.destroy).pack(side=tk.LEFT, padx=5)
     
@@ -266,6 +268,16 @@ class FormularioPresupuesto:
         notes_frame.columnconfigure(0, weight=1)
         notes_frame.columnconfigure(1, weight=1)
 
+    def gestionar_adjuntos(self):
+        """Abrir gestión de adjuntos desde el formulario"""
+        from dialogo_adjunto import DialogoAdjunto
+        presupuesto_id = self.presupuesto_data['id'] if self.presupuesto_data else None
+        if presupuesto_id:
+            print(f"🔧 Abriendo diálogo de adjuntos para presupuesto ID: {presupuesto_id}")
+            dialogo = DialogoAdjunto(self.window, self.manager, presupuesto_id)
+            # El diálogo se maneja automáticamente, no necesitamos hacer nada más
+        else:
+            messagebox.showwarning("Advertencia", "Guarde el presupuesto primero para agregar adjuntos")
 
     def obtener_nombre_cliente(self, cliente):
         """Obtener nombre completo del cliente"""
@@ -312,7 +324,6 @@ class FormularioPresupuesto:
                     
             except ValueError as e:
                 print(f"⚠️ Error convirtiendo fecha: {e}")
-                # Si hay error, usar el valor original
                 if not CALENDAR_AVAILABLE:
                     self.valido_hasta_var.set(valido_hasta)
 
@@ -341,7 +352,7 @@ class FormularioPresupuesto:
                 print(f"   Ítem {i}: precio={item.get('precio_unitario')}, tipo={type(item.get('precio_unitario'))}")
                 
                 # 🔥 CONVERTIR PRECIOS A FLOAT
-                item_data = item.copy()  # Crear copia para no modificar el original
+                item_data = item.copy()
                 if 'precio_unitario' in item_data:
                     precio = item_data['precio_unitario']
                     if isinstance(precio, str):
@@ -360,7 +371,6 @@ class FormularioPresupuesto:
 
     def agregar_item_a_treeview(self, item):
         """Agregar un ítem al treeview"""
-        tipo = "Producto" if item.get('producto') else "Servicio"
         codigo = item.get('codigo', '')
         descripcion = item.get('descripcion', '')
         
@@ -381,12 +391,6 @@ class FormularioPresupuesto:
                 precio_unitario = 0.0
         
         subtotal = cantidad * precio_unitario
-        
-        # 🔥 DEBUG PARA VERIFICAR
-        print(f"📦 Agregando ítem: {descripcion}")
-        print(f"   Cantidad: {cantidad} (tipo: {type(cantidad)})")
-        print(f"   Precio: {precio_unitario} (tipo: {type(precio_unitario)})")
-        print(f"   Subtotal: {subtotal}")
         
         self.tree_items.insert('', tk.END, values=(
             codigo,
@@ -609,24 +613,10 @@ class FormularioPresupuesto:
             messagebox.showerror("Error", "Cliente no válido")
             return
         
-        # 🔥 DEBUG DETALLADO
-        print("=" * 50)
-        print("DEBUG - DATOS A GUARDAR:")
-        print(f"Es nuevo: {self.es_nuevo}")
-        print(f"Estado seleccionado: {self.estado_var.get()}")
-        print(f"Cliente ID: {cliente_id}")
-        print(f"IVA: {self.iva_var.get()}")
-        print(f"Válido hasta: {self.obtener_fecha_validez()}")  # 🔥 USAR MÉTODO CORRECTO
-        print(f"Cantidad de ítems: {len(self.items_presupuesto)}")
-        
-        for i, item in enumerate(self.items_presupuesto):
-            print(f"Ítem {i}: {item}")
-        print("=" * 50)
-        
-        # Preparar datos - 🔥 INCLUIR FECHA DE VALIDEZ EN FORMATO API
+        # Preparar datos
         datos = {
             'cliente': cliente_id,
-            'valido_hasta': self.obtener_fecha_validez(),  # 🔥 USAR MÉTODO CORRECTO
+            'valido_hasta': self.obtener_fecha_validez(),
             'observaciones': self.observaciones_text.get('1.0', tk.END).strip(),
             'condiciones_comerciales': self.condiciones_text.get('1.0', tk.END).strip(),
             'iva_porcentaje': float(self.iva_var.get()),

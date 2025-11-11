@@ -10,6 +10,7 @@ import os
 from PIL import Image, ImageTk
 import json
 import base64
+from image_helper import ImageHelper
 
 class ProductosWindow:
     def __init__(self, parent):
@@ -498,7 +499,9 @@ class FormularioProducto:
         self.plano_path = None
         self.foto_data = None
         self.plano_data = None
-       
+        self.foto_preview = None  # Para mantener referencia de la imagen preview
+        self.plano_url = None  # ← AGREGAR ESTA LÍNEA
+        
         # Crear ventana
         self.window = tk.Toplevel(parent)
         self.window.title("Nuevo Producto" if self.es_nuevo else "Editar Producto")
@@ -745,76 +748,211 @@ class FormularioProducto:
                                                    if not (imp['impuesto_id'] == impuesto_id and imp['tipo'] == tipo)]
    
     def crear_pestania_archivos(self, parent):
-        """Crear pestaña para gestión de archivos"""
+        """Crear pestaña para gestión de archivos - MEJORADO CON PREVIEW"""
         main_frame = ttk.Frame(parent, padding="10")
         main_frame.pack(fill=tk.BOTH, expand=True)
        
         # Frame para foto
         foto_frame = ttk.LabelFrame(main_frame, text="📷 Foto del Producto", padding="10")
-        foto_frame.pack(fill=tk.X, pady=5)
+        foto_frame.pack(fill=tk.BOTH, expand=True, pady=5)
        
-        self.foto_label = ttk.Label(foto_frame, text="No se ha seleccionado foto")
-        self.foto_label.pack(pady=5)
+        # Frame para preview de imagen
+        self.preview_frame = ttk.Frame(foto_frame)
+        self.preview_frame.pack(fill=tk.BOTH, expand=True, pady=5)
        
-        ttk.Button(foto_frame, text="Seleccionar Foto", command=self.seleccionar_foto).pack(pady=5)
+        # Label para mostrar la imagen (inicialmente vacío)
+        self.foto_preview_label = ttk.Label(self.preview_frame, text="No hay imagen seleccionada")
+        self.foto_preview_label.pack(expand=True)
        
-        # Frame para plano
+        # Frame para controles
+        controls_frame = ttk.Frame(foto_frame)
+        controls_frame.pack(fill=tk.X, pady=5)
+       
+        self.foto_label = ttk.Label(controls_frame, text="No se ha seleccionado foto")
+        self.foto_label.pack(side=tk.LEFT, padx=5)
+       
+        ttk.Button(controls_frame, text="Seleccionar Foto", command=self.seleccionar_foto).pack(side=tk.LEFT, padx=5)
+        ttk.Button(controls_frame, text="Eliminar Foto", command=self.eliminar_foto).pack(side=tk.LEFT, padx=5)
+       
+        # Frame para plano - MEJORADO
         plano_frame = ttk.LabelFrame(main_frame, text="📄 Plano/Especificación", padding="10")
         plano_frame.pack(fill=tk.X, pady=5)
-       
+    
+        # Label para información del plano
         self.plano_label = ttk.Label(plano_frame, text="No se ha seleccionado archivo")
         self.plano_label.pack(pady=5)
-       
-        ttk.Button(plano_frame, text="Seleccionar Plano", command=self.seleccionar_plano).pack(pady=5)
-   
+    
+        # Frame para botones del plano
+        plano_buttons_frame = ttk.Frame(plano_frame)
+        plano_buttons_frame.pack(pady=5)
+    
+        ttk.Button(plano_buttons_frame, text="Seleccionar Plano", 
+                command=self.seleccionar_plano).pack(side=tk.LEFT, padx=5)
+        ttk.Button(plano_buttons_frame, text="Abrir Plano", 
+                command=self.abrir_plano).pack(side=tk.LEFT, padx=5)
+        ttk.Button(plano_buttons_frame, text="Eliminar Plano", 
+                command=self.eliminar_plano).pack(side=tk.LEFT, padx=5)
     def seleccionar_foto(self):
-        """Seleccionar archivo de foto"""
+        """Seleccionar archivo de foto - MEJORADO CON SOPORTE WEBP"""
         file_path = filedialog.askopenfilename(
             title="Seleccionar Foto",
-            filetypes=[("Imágenes", "*.jpg *.jpeg *.png *.gif *.bmp"), ("Todos los archivos", "*.*")]
+            filetypes=[
+                ("Imágenes", "*.jpg *.jpeg *.png *.gif *.bmp *.webp"),
+                ("Todos los archivos", "*.*")
+            ]
         )
         if file_path:
             self.foto_path = file_path
             self.foto_label.config(text=os.path.basename(file_path))
-            # Aquí podrías cargar la imagen para previsualización
-   
+            self.mostrar_preview_foto(file_path)
+
+    def mostrar_preview_foto(self, image_path):
+        """Mostrar preview de la imagen seleccionada"""
+        try:
+            # Limpiar preview anterior
+            for widget in self.preview_frame.winfo_children():
+                widget.destroy()
+            
+            # Cargar y mostrar imagen usando ImageHelper
+            photo = ImageHelper.create_tkinter_photo(image_path, max_size=(300, 300))
+            
+            if photo:
+                self.foto_preview_label = ttk.Label(self.preview_frame, image=photo)
+                self.foto_preview_label.image = photo  # Mantener referencia
+                self.foto_preview_label.pack(expand=True)
+                
+                # Mostrar información del formato
+                formato = "WEBP" if ImageHelper.is_webp_format(image_path) else "Compatible"
+                info_label = ttk.Label(self.preview_frame, 
+                                     text=f"Formato: {formato} | Tamaño: 300x300px",
+                                     font=("Arial", 8))
+                info_label.pack()
+            else:
+                self.foto_preview_label = ttk.Label(self.preview_frame, 
+                                                  text="❌ No se pudo cargar la imagen\nFormato no compatible")
+                self.foto_preview_label.pack(expand=True)
+                
+        except Exception as e:
+            print(f"Error mostrando preview: {e}")
+            self.foto_preview_label = ttk.Label(self.preview_frame, 
+                                              text="❌ Error al cargar la imagen")
+            self.foto_preview_label.pack(expand=True)
+
+    def eliminar_foto(self):
+        """Eliminar foto seleccionada"""
+        self.foto_path = None
+        self.foto_data = None
+        self.foto_label.config(text="No se ha seleccionado foto")
+        
+        # Limpiar preview
+        for widget in self.preview_frame.winfo_children():
+            widget.destroy()
+        
+        self.foto_preview_label = ttk.Label(self.preview_frame, text="No hay imagen seleccionada")
+        self.foto_preview_label.pack(expand=True)
+
     def seleccionar_plano(self):
         """Seleccionar archivo de plano"""
         file_path = filedialog.askopenfilename(
             title="Seleccionar Plano",
-            filetypes=[("PDF", "*.pdf"), ("Documentos", "*.doc *.docx"), ("Todos los archivos", "*.*")]
+            filetypes=[
+                ("PDF", "*.pdf"), 
+                ("Documentos", "*.doc *.docx"), 
+                ("Imágenes", "*.jpg *.jpeg *.png *.webp"),
+                ("Todos los archivos", "*.*")
+            ]
         )
         if file_path:
             self.plano_path = file_path
             self.plano_label.config(text=os.path.basename(file_path))
+
+    def eliminar_plano(self):
+        """Eliminar plano seleccionado"""
+        self.plano_path = None
+        self.plano_data = None
+        if hasattr(self, 'plano_url'):
+            delattr(self, 'plano_url')
+        self.plano_label.config(text="No se ha seleccionado archivo")
+
+    def procesar_archivos_para_guardar(self):
+        """Procesar archivos para enviar al backend - VERSIÓN MEJORADA"""
+        archivos_data = {}
+        
+        # Procesar foto
+        if self.foto_path:
+            try:
+                # Cargar imagen usando ImageHelper
+                img = ImageHelper.load_image_for_tkinter(self.foto_path)
+                if img:
+                    # Convertir a bytes en memoria (sin crear archivo temporal)
+                    from io import BytesIO
+                    buffer = BytesIO()
+                    
+                    # Guardar como PNG en memoria
+                    if img.mode != 'RGB':
+                        img = img.convert('RGB')
+                    img.save(buffer, format='PNG')
+                    
+                    # Obtener bytes y codificar en base64
+                    buffer.seek(0)
+                    archivos_data['foto'] = base64.b64encode(buffer.getvalue()).decode('utf-8')
+                    buffer.close()
+                    
+            except Exception as e:
+                print(f"❌ Error procesando foto: {e}")
+        
+        # Procesar plano (sin conversión, se guarda como viene)
+        if self.plano_path:
+            try:
+                with open(self.plano_path, 'rb') as f:
+                    archivos_data['plano'] = base64.b64encode(f.read()).decode('utf-8')
+            except Exception as e:
+                print(f"❌ Error procesando plano: {e}")
+        
+        return archivos_data
    
     def cargar_datos(self):
         """Cargar datos del producto en el formulario"""
         if not self.producto_data:
             return
-       
+    
         self.codigo_var.set(self.producto_data.get('sku', ''))
-        self.codigo_barras_var.set(self.producto_data.get('codigo_barras', ''))
+        
+        codigo_barras = self.producto_data.get('codigo_barras')
+        if codigo_barras is None:
+            self.codigo_barras_var.set('')
+        else:
+            self.codigo_barras_var.set(codigo_barras)
+    
         self.nombre_var.set(self.producto_data.get('nombre', ''))
+        
+        # Limpiar descripción antes de insertar
+        self.descripcion_text.delete('1.0', tk.END)
         self.descripcion_text.insert('1.0', self.producto_data.get('descripcion', ''))
+        
         self.costo_compra_var.set(str(self.producto_data.get('costo_compra', '')))
         self.precio_venta_var.set(str(self.producto_data.get('precio_venta', '')))
         self.stock_var.set(str(self.producto_data.get('stock', 0)))
         self.activo_var.set(self.producto_data.get('activo', True))
-       
+    
         # Cargar relaciones
         if self.producto_data.get('proveedor'):
             proveedor_nombre = self.obtener_nombre_por_id(self.proveedores, self.producto_data['proveedor'])
             self.proveedor_var.set(proveedor_nombre)
-       
+    
         if self.producto_data.get('categoria'):
             categoria_nombre = self.obtener_nombre_por_id(self.categorias, self.producto_data['categoria'])
             self.categoria_var.set(categoria_nombre)
-       
+    
         if self.producto_data.get('marca'):
             marca_nombre = self.obtener_nombre_por_id(self.marcas, self.producto_data['marca'])
             self.marca_var.set(marca_nombre)
-       
+
+        # CARGAR FOTO EXISTENTE - IMPLEMENTACIÓN COMPLETA
+        self.cargar_foto_existente()   
+         # CARGAR PLANO EXISTENTE
+        self.cargar_plano_existente()
+
         # Cargar impuestos existentes
         if 'productoimpuesto_set' in self.producto_data:
             for impuesto in self.producto_data['productoimpuesto_set']:
@@ -825,7 +963,7 @@ class FormularioProducto:
                         'impuesto_id': impuesto_id,
                         'tipo': tipo
                     })
-           
+        
             # Actualizar treeview de impuestos
             self.marcar_impuestos_seleccionados()
    
@@ -886,11 +1024,11 @@ class FormularioProducto:
         return True
    
     def guardar(self):
-        """Guardar producto - USAR PATCH para actualización parcial"""
+        """Guardar producto - ENVIAR ARCHIVOS COMO MULTIPART/FORM-DATA"""
         if not self.validar_formulario():
             return
-       
-        # Preparar datos básicos - SOLO campos modificados para PATCH
+
+        # Preparar datos básicos
         datos = {
             'nombre': self.nombre_var.get().strip(),
             'costo_compra': float(self.costo_compra_var.get().strip()),
@@ -898,42 +1036,41 @@ class FormularioProducto:
             'stock': int(self.stock_var.get()) if self.stock_var.get() else 0,
             'activo': self.activo_var.get()
         }
-       
+
         # Solo incluir campos opcionales si tienen valor o son nuevos
         codigo = self.codigo_var.get().strip()
         if codigo:
             datos['sku'] = codigo
         elif self.es_nuevo:
-            datos['sku'] = None  # Para nuevo producto, None genera SKU automático
-       
+            datos['sku'] = None
+
         codigo_barras = self.codigo_barras_var.get().strip()
-        if codigo_barras:
+        if codigo_barras and codigo_barras != "None":
             datos['codigo_barras'] = codigo_barras
         else:
             datos['codigo_barras'] = ""
-       
+
         descripcion = self.descripcion_text.get('1.0', tk.END).strip()
         if descripcion:
             datos['descripcion'] = descripcion
         else:
             datos['descripcion'] = ""
-       
+
         # Manejar relaciones - solo si están seleccionadas
         if self.proveedor_var.get():
             proveedor_id = next((prov['id'] for prov in self.proveedores
-                           if prov['nombre'] == self.proveedor_var.get()), None)
+                        if prov['nombre'] == self.proveedor_var.get()), None)
             if proveedor_id:
                 datos['proveedor'] = proveedor_id
         else:
-            # Para actualización, si no hay selección, mantener el valor existente
             if not self.es_nuevo and 'proveedor' in self.producto_data:
                 datos['proveedor'] = self.producto_data['proveedor']
             else:
                 datos['proveedor'] = None
-       
+
         if self.categoria_var.get():
             categoria_id = next((cat['id'] for cat in self.categorias
-                           if cat['nombre'] == self.categoria_var.get()), None)
+                        if cat['nombre'] == self.categoria_var.get()), None)
             if categoria_id:
                 datos['categoria'] = categoria_id
         else:
@@ -941,10 +1078,10 @@ class FormularioProducto:
                 datos['categoria'] = self.producto_data['categoria']
             else:
                 datos['categoria'] = None
-       
+
         if self.marca_var.get():
             marca_id = next((marca['id'] for marca in self.marcas
-                       if marca['nombre'] == self.marca_var.get()), None)
+                    if marca['nombre'] == self.marca_var.get()), None)
             if marca_id:
                 datos['marca'] = marca_id
         else:
@@ -952,7 +1089,7 @@ class FormularioProducto:
                 datos['marca'] = self.producto_data['marca']
             else:
                 datos['marca'] = None
-       
+
         # Agregar impuestos seleccionados
         if self.impuestos_seleccionados:
             datos['productoimpuesto_set'] = []
@@ -962,23 +1099,302 @@ class FormularioProducto:
                     'tipo': imp_sel['tipo']
                 })
         elif not self.es_nuevo:
-            # Para actualización, mantener impuestos existentes si no hay cambios
             if 'productoimpuesto_set' in self.producto_data:
                 datos['productoimpuesto_set'] = self.producto_data['productoimpuesto_set']
-       
+
         print(f"DEBUG - Datos a enviar: {datos}")
-       
+
+        # PREPARAR ARCHIVOS COMO OBJETOS FILE REALES
+        files = {}
+        
+        # Procesar foto como archivo real
+        if self.foto_path:
+            try:
+                # ABRIR el archivo, no leerlo completamente
+                files['foto'] = (
+                    os.path.basename(self.foto_path),
+                    open(self.foto_path, 'rb'),
+                    'image/jpeg'
+                )
+                
+            except Exception as e:
+                print(f"❌ Error cargando foto: {e}")
+                messagebox.showerror("Error", f"No se pudo cargar la foto: {e}")
+                return
+
+        # Procesar plano como archivo real
+        if self.plano_path:
+            try:
+                files['plano'] = (
+                    os.path.basename(self.plano_path),
+                    open(self.plano_path, 'rb'),
+                    'application/octet-stream'
+                )
+
+            except Exception as e:
+                print(f"❌ Error cargando plano: {e}")
+                messagebox.showerror("Error", f"No se pudo cargar el plano: {e}")
+                return
+
         manager = ProductosManager()
         if self.es_nuevo:
-            resultado = manager.crear_producto(datos)
+            resultado = manager.crear_producto(datos, files if files else None)
         else:
-            resultado = manager.actualizar_producto(self.producto_data['id'], datos)
-       
+            resultado = manager.actualizar_producto(self.producto_data['id'], datos, files if files else None)
+
+        # Cerrar archivos despues de enviarlos
+        for file_tuple in files.values():
+            file_tuple[1].close()
+
         if resultado:
             self.productos_window.cargar_productos()
             self.window.destroy()
+        else:
+            messagebox.showerror("Error", "No se pudo guardar el producto. Verifique los datos e intente nuevamente.")
 
+    def cargar_foto_existente(self):
+        """Cargar y mostrar la foto existente del producto"""
+        try:
+            # Verificar si hay foto en los datos del producto
+            foto_data = self.producto_data.get('foto')
+            
+            if not foto_data:
+                # No hay foto, mostrar estado por defecto
+                self.foto_label.config(text="No hay foto cargada")
+                return
+                
+            print(f"DEBUG - Foto data recibida: {type(foto_data)} - {str(foto_data)[:100]}...")
+            
+            # Dependiendo de cómo el backend devuelve la foto:
+            
+            # Opción 1: La foto es una URL (string que comienza con http o /)
+            if isinstance(foto_data, str):
+                if foto_data.startswith('http') or foto_data.startswith('/'):
+                    self.cargar_foto_desde_url(foto_data)
+                elif len(foto_data) > 100:  # Podría ser base64
+                    self.mostrar_foto_base64(foto_data)
+                else:
+                    # Podría ser un nombre de archivo o URL relativa
+                    self.foto_label.config(text=f"Foto: {foto_data}")
+                    
+            # Opción 2: La foto es un diccionario con información
+            elif isinstance(foto_data, dict):
+                url = foto_data.get('url') or foto_data.get('foto_url') or foto_data.get('imagen')
+                if url:
+                    self.cargar_foto_desde_url(url)
+                else:
+                    self.foto_label.config(text="Foto disponible (formato diccionario)")
+                    
+            else:
+                self.foto_label.config(text=f"Foto disponible (tipo: {type(foto_data)})")
+                
+        except Exception as e:
+            print(f"❌ Error cargando foto existente: {e}")
+            self.foto_label.config(text="Error cargando foto")
 
+    def cargar_foto_desde_url(self, url_foto):
+        """Cargar foto desde URL"""
+        try:
+            # Si es una URL relativa, construir la URL completa
+            if url_foto.startswith('/'):
+                from config import Config
+                # Asumiendo que tienes una URL base en tu configuración
+                base_url = getattr(Config, 'BASE_URL', 'http://localhost:8000')
+                url_foto = f"{base_url}{url_foto}"
+            
+            print(f"DEBUG - Descargando foto desde: {url_foto}")
+            
+            # Descargar la imagen
+            import requests
+            from io import BytesIO
+            
+            # Usar la misma sesión que APIClient para mantener la autenticación
+            from api_client import APIClient
+            client = APIClient()
+            
+            response = client.session.get(url_foto, timeout=10)
+            if response.status_code == 200:
+                # Crear imagen desde los datos descargados
+                image_data = BytesIO(response.content)
+                self.mostrar_preview_desde_bytes(image_data, "Foto del producto")
+                self.foto_label.config(text="Foto cargada desde servidor")
+            else:
+                self.foto_label.config(text=f"No se pudo cargar la foto (HTTP {response.status_code})")
+                
+        except Exception as e:
+            print(f"❌ Error descargando foto: {e}")
+            self.foto_label.config(text="Error cargando foto")
+
+    def mostrar_foto_base64(self, base64_data):
+        """Mostrar foto desde datos base64"""
+        try:
+            import base64
+            from io import BytesIO
+            
+            print("DEBUG - Procesando foto en base64")
+            
+            # Decodificar base64
+            image_data = base64.b64decode(base64_data)
+            image_buffer = BytesIO(image_data)
+            
+            self.mostrar_preview_desde_bytes(image_buffer, "Foto del producto")
+            self.foto_label.config(text="Foto cargada (base64)")
+            
+        except Exception as e:
+            print(f"❌ Error mostrando foto base64: {e}")
+            self.foto_label.config(text="Error mostrando foto")
+
+    def mostrar_preview_desde_bytes(self, image_buffer, descripcion):
+        """Mostrar preview desde buffer de imagen"""
+        try:
+            # Limpiar preview anterior
+            for widget in self.preview_frame.winfo_children():
+                widget.destroy()
+            
+            # Cargar y mostrar imagen usando ImageHelper
+            from image_helper import ImageHelper
+            
+            # Crear PhotoImage desde los bytes
+            photo = ImageHelper.create_tkinter_photo_from_bytes(image_buffer, max_size=(300, 300))
+            
+            if photo:
+                self.foto_preview_label = ttk.Label(self.preview_frame, image=photo)
+                self.foto_preview_label.image = photo  # Mantener referencia
+                self.foto_preview_label.pack(expand=True)
+                
+                info_label = ttk.Label(self.preview_frame, 
+                                    text=f"{descripcion} | Tamaño: 300x300px",
+                                    font=("Arial", 8))
+                info_label.pack()
+                
+                self.foto_label.config(text="Foto cargada")
+            else:
+                self.foto_preview_label = ttk.Label(self.preview_frame, 
+                                                text="❌ No se pudo cargar la imagen existente")
+                self.foto_preview_label.pack(expand=True)
+                
+        except Exception as e:
+            print(f"❌ Error mostrando preview desde bytes: {e}")
+            self.foto_preview_label = ttk.Label(self.preview_frame, 
+                                            text="❌ Error al cargar la imagen existente")
+            self.foto_preview_label.pack(expand=True)
+    def cargar_plano_existente(self):
+        """Cargar y mostrar información del plano existente"""
+        try:
+            plano_data = self.producto_data.get('plano')
+            
+            if not plano_data:
+                self.plano_label.config(text="No se ha seleccionado archivo")
+                return
+                
+            print(f"DEBUG - Plano data recibida: {type(plano_data)} - {str(plano_data)}")
+            
+            # Mostrar información del plano
+            if isinstance(plano_data, str):
+                if plano_data.startswith('http') or plano_data.startswith('/'):
+                    nombre_archivo = plano_data.split('/')[-1]
+                    self.plano_label.config(text=f"📄 {nombre_archivo} (listo para descargar)")
+                    # Guardar URL para descargar
+                    self.plano_url = plano_data
+                else:
+                    self.plano_label.config(text=f"📄 {plano_data}")
+                    
+            elif isinstance(plano_data, dict):
+                url = plano_data.get('url') or plano_data.get('plano_url')
+                nombre = plano_data.get('name', plano_data.get('filename', 'Plano'))
+                if url:
+                    self.plano_label.config(text=f"📄 {nombre} (listo para descargar)")
+                    self.plano_url = url
+                else:
+                    self.plano_label.config(text=f"📄 {nombre}")
+                    
+            else:
+                self.plano_label.config(text="📄 Plano disponible")
+                
+        except Exception as e:
+            print(f"❌ Error cargando plano existente: {e}")
+            self.plano_label.config(text="❌ Error cargando plano")
+    def abrir_plano(self):
+        """Abrir el plano PDF existente"""
+        try:
+            # Verificar si hay plano cargado
+            if not hasattr(self, 'plano_url') and not self.plano_path:
+                messagebox.showinfo("Información", "No hay ningún plano para abrir")
+                return
+            
+            # Si hay un plano nuevo seleccionado (aún no guardado)
+            if self.plano_path:
+                self.abrir_archivo_local(self.plano_path)
+                return
+                
+            # Si hay un plano existente en el servidor
+            if hasattr(self, 'plano_url'):
+                # Descargar y abrir el plano
+                self.descargar_y_abrir_plano(self.plano_url)
+                
+        except Exception as e:
+            print(f"❌ Error abriendo plano: {e}")
+            messagebox.showerror("Error", f"No se pudo abrir el plano: {e}")
+
+    def abrir_archivo_local(self, file_path):
+        """Abrir archivo local con aplicación predeterminada"""
+        try:
+            import os
+            import subprocess
+            import platform
+            
+            if platform.system() == "Windows":
+                os.startfile(file_path)
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.run(["open", file_path])
+            else:  # Linux
+                subprocess.run(["xdg-open", file_path])
+                
+            print(f"✅ Abriendo archivo: {file_path}")
+            
+        except Exception as e:
+            print(f"❌ Error abriendo archivo local: {e}")
+            messagebox.showerror("Error", f"No se pudo abrir el archivo: {e}")
+
+    def descargar_y_abrir_plano(self, url_plano):
+        """Descargar plano desde URL y abrirlo"""
+        try:
+            import requests
+            import tempfile
+            import os
+            
+            # Si es una URL relativa, construir la URL completa
+            if url_plano.startswith('/'):
+                from config import Config
+                base_url = getattr(Config, 'BASE_URL', 'http://localhost:8000')
+                url_plano = f"{base_url}{url_plano}"
+            
+            print(f"DEBUG - Descargando plano desde: {url_plano}")
+            
+            # Descargar el archivo
+            from api_client import APIClient
+            client = APIClient()
+            
+            response = client.session.get(url_plano, timeout=30)
+            if response.status_code == 200:
+                # Crear archivo temporal
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
+                    temp_file.write(response.content)
+                    temp_path = temp_file.name
+                
+                # Abrir el archivo temporal
+                self.abrir_archivo_local(temp_path)
+                
+                # Opcional: limpiar archivo temporal después de un tiempo
+                # import threading
+                # threading.Timer(10.0, lambda: os.unlink(temp_path)).start()
+                
+            else:
+                messagebox.showerror("Error", f"No se pudo descargar el plano (HTTP {response.status_code})")
+                
+        except Exception as e:
+            print(f"❌ Error descargando plano: {e}")
+            messagebox.showerror("Error", f"No se pudo descargar el plano: {e}")
 class VentanaActualizarStock:
     def __init__(self, parent, productos_window, producto_data):
         self.parent = parent

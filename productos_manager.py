@@ -28,27 +28,27 @@ class ProductosManager:
             return None
         return data
    
-    def crear_producto(self, datos_producto):
+    def crear_producto(self, datos_producto, files=None):
         """Crear un nuevo producto - USAR PUT para creación completa"""
         # Convertir impuestos a formato JSON si es necesario
         if 'productoimpuesto_set' in datos_producto and isinstance(datos_producto['productoimpuesto_set'], list):
             datos_producto['productoimpuesto_set'] = json.dumps(datos_producto['productoimpuesto_set'])
         
-        data, error = self.client.post(Endpoints.PRODUCTOS, datos_producto)
+        data, error = self.client.post(Endpoints.PRODUCTOS, datos_producto, files=files)
         if error:
             messagebox.showerror("Error", f"No se pudo crear el producto: {error}")
             return None
         messagebox.showinfo("Éxito", "Producto creado correctamente")
         return data
    
-    def actualizar_producto(self, producto_id, datos_producto):
+    def actualizar_producto(self, producto_id, datos_producto, files=None):
         """Actualizar un producto existente - USAR PATCH para actualización parcial"""
         # Convertir impuestos a formato JSON si es necesario
         if 'productoimpuesto_set' in datos_producto and isinstance(datos_producto['productoimpuesto_set'], list):
             datos_producto['productoimpuesto_set'] = json.dumps(datos_producto['productoimpuesto_set'])
             
         # USAR PATCH en lugar de PUT para actualización parcial
-        data, error = self.client.patch(f"{Endpoints.PRODUCTOS}{producto_id}/", datos_producto)
+        data, error = self.client.patch(f"{Endpoints.PRODUCTOS}{producto_id}/", datos_producto, files=files)
         if error:
             messagebox.showerror("Error", f"No se pudo actualizar el producto: {error}")
             return None

@@ -20,7 +20,11 @@ class Endpoints:
     CATEGORIAS = "/categorias/"
     MARCAS = "/marcas/"
     COMPROBANTES = "/comprobantes/"
-
+    
+    # Adjuntos
+    ADJUNTOS_TIPOS = "/presupuestos/adjuntos/tipos/"
+    ADJUNTOS_PRESUPUESTO = "/presupuestos/{}/adjuntos/"
+    ADJUNTOS_ELIMINAR = "/presupuestos/{}/adjuntos/{}/"
 
 class APIClient:
     def __init__(self):
@@ -126,11 +130,15 @@ class APIClient:
         except Exception as e:
             return None, f"Error de conexión: {str(e)}"
    
-    def post(self, endpoint, data):
+    def post(self, endpoint, data, files=None):
         """POST request"""
         try:
             url = Config.get_api_url(endpoint)
-            response = self.session.post(url, json=data, timeout=Config.API_TIMEOUT)
+            if files:
+                response = self.session.post(url, data=data, files=files, timeout=Config.API_TIMEOUT)
+            else:
+                response = self.session.post(url, json=data, timeout=Config.API_TIMEOUT)
+
             return self._handle_response(response)
         except Exception as e:
             return None, f"Error de conexión: {str(e)}"
@@ -144,11 +152,14 @@ class APIClient:
         except Exception as e:
             return None, f"Error de conexión: {str(e)}"
    
-    def patch(self, endpoint, data):
+    def patch(self, endpoint, data, files=None):
         """PATCH request - Para actualizaciones parciales"""
         try:
             url = Config.get_api_url(endpoint)
-            response = self.session.patch(url, json=data, timeout=Config.API_TIMEOUT)
+            if files:
+                response = self.session.patch(url, data=data, files=files, timeout=Config.API_TIMEOUT)
+            else:
+                response = self.session.patch(url, json=data, timeout=Config.API_TIMEOUT)
             return self._handle_response(response)
         except Exception as e:
             return None, f"Error de conexión: {str(e)}"
@@ -182,3 +193,66 @@ class APIClient:
             except:
                 return None, f"Error {response.status_code}: {response.text}"
 
+    # 👇 MÉTODOS NUEVOS PARA ADJUNTOS
+    
+    def get_adjuntos_presupuesto(self, presupuesto_id):
+        """Obtener todos los adjuntos de un presupuesto"""
+        try:
+            url = Config.get_api_url(Endpoints.ADJUNTOS_PRESUPUESTO.format(presupuesto_id))
+            response = self.session.get(url, timeout=Config.API_TIMEOUT)
+            return self._handle_response(response)
+        except Exception as e:
+            return None, f"Error de conexión: {str(e)}"
+    
+    def get_tipos_adjunto(self):
+        """Obtener los tipos de adjuntos disponibles"""
+        try:
+            url = Config.get_api_url(Endpoints.ADJUNTOS_TIPOS)
+            response = self.session.get(url, timeout=Config.API_TIMEOUT)
+            return self._handle_response(response)
+        except Exception as e:
+            return None, f"Error de conexión: {str(e)}"
+    
+    def subir_adjunto(self, presupuesto_id, archivo_path, tipo, descripcion=""):
+        """Subir un archivo adjunto a un presupuesto"""
+        try:
+            url = Config.get_api_url(Endpoints.ADJUNTOS_PRESUPUESTO.format(presupuesto_id))
+            
+            # Verificar que el archivo existe
+            if not os.path.exists(archivo_path):
+                return None, f"El archivo no existe: {archivo_path}"
+            
+            with open(archivo_path, 'rb') as archivo:
+                files = {'archivo': (os.path.basename(archivo_path), archivo)}
+                data = {
+                    'presupuesto': presupuesto_id,  # 👈 AGREGAR ESTE CAMPO REQUERIDO
+                    'tipo': tipo,
+                    'descripcion': descripcion
+                }
+                
+                print(f"📤 Datos a enviar para adjunto:")
+                print(f"   Presupuesto ID: {presupuesto_id}")
+                print(f"   Tipo: {tipo}")
+                print(f"   Descripción: {descripcion}")
+                print(f"   Archivo: {os.path.basename(archivo_path)}")
+                
+                response = self.session.post(url, files=files, data=data, timeout=Config.API_TIMEOUT)
+            
+            return self._handle_response(response)
+            
+        except Exception as e:
+            return None, f"Error subiendo archivo: {str(e)}"
+    
+    def eliminar_adjunto(self, presupuesto_id, adjunto_id):
+        """Eliminar un adjunto - VERSIÓN CORREGIDA"""
+        try:
+            # 👇 USAR EL ENDPOINT CORRECTO con ambos IDs
+            url = Config.get_api_url(Endpoints.ADJUNTOS_ELIMINAR.format(presupuesto_id, adjunto_id))
+            print(f"🗑️ Eliminando adjunto {adjunto_id} del presupuesto {presupuesto_id}")
+            print(f"🔧 URL: {url}")
+            
+            response = self.session.delete(url, timeout=Config.API_TIMEOUT)
+            return self._handle_response(response)
+            
+        except Exception as e:
+            return None, f"Error de conexión: {str(e)}"
