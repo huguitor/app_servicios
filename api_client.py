@@ -11,6 +11,7 @@ class Endpoints:
     TOKEN = "/api/token/"
    
     # Data
+    CONFIGURACION = "/configuracion/configuracion/"
     CLIENTES = "/clientes/"
     PROVEEDORES = "/proveedores/"
     PRODUCTOS = "/productos/productos/"

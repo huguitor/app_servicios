@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from auth_manager import AuthManager
 from config import Config
+from configuracion_window import ConfiguracionWindow
 from clientes_window import ClientesWindow
 from proveedores_window import ProveedoresWindow
 from impuestos_window import ImpuestosWindow
@@ -332,7 +333,10 @@ class MainApp:
         management_menu.add_separator()
         management_menu.add_command(label="💰 Presupuestos", command=self.show_presupuestos)
         menubar.add_cascade(label="📊 Gestión", menu=management_menu)
-       
+        # 🔥 NUEVO: Menú Configuración
+        config_menu = tk.Menu(menubar, tearoff=0)
+        config_menu.add_command(label="⚙️ Configuración del Sistema", command=self.show_configuracion)
+        menubar.add_cascade(label="🔧 Configuración", menu=config_menu)
         # Menú Ventana
         window_menu = tk.Menu(menubar, tearoff=0)
         window_menu.add_command(label="📐 Tamaño Normal", command=self.normal_size)
@@ -505,7 +509,8 @@ class MainApp:
             ("🏷️ Gestión de Marcas", self.show_marcas, "#27ae60"),
             ("📦 Gestión de Productos", self.show_productos, "#1abc9c"),
             ("🔧 Gestión de Servicios", self.show_servicios, "#d35400"),
-            ("💰 Presupuestos", self.show_presupuestos, "#8e44ad")
+            ("💰 Presupuestos", self.show_presupuestos, "#8e44ad"),
+            ("⚙️ Configuración", self.show_configuracion, "#95a5a6")
         ]
        
         row2_frame = ttk.Frame(actions_frame)
@@ -552,7 +557,14 @@ class MainApp:
     def show_presupuestos(self):
         """Abrir ventana de gestión de presupuestos"""
         PresupuestosWindow(self.window)
-   
+
+    def show_configuracion(self):
+        """Abrir ventana de configuración del sistema"""
+        try:        
+         ConfiguracionWindow(self.window)
+        except Exception as e:
+         messagebox.showerror("Error", f"No se pudo abrir la configuración: {e}")
+
     def clear_main_frame(self):
         for widget in self.main_frame.winfo_children():
             widget.destroy()
