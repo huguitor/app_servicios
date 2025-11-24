@@ -1,4 +1,3 @@
-# app_escritorio/pdf_generator.py
 import os
 import tkinter as tk
 from tkinter import filedialog, messagebox
@@ -9,12 +8,22 @@ from decimal import Decimal
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+
+# 🔥 NUEVA IMPORTACIÓN
+from configuracion_manager import ConfiguracionManager
 
 class PDFGenerator:
     def __init__(self):
         self.styles = getSampleStyleSheet()
         self._setup_custom_styles()
+        
+        # 🔥 NUEVO: Instancia del manager de configuración
+        self.config_manager = ConfiguracionManager()
+        
+        # 🔥 NUEVO: Cargar datos de empresa al inicializar
+        self.datos_empresa = self.config_manager.obtener_datos_empresa()
+        print(f"🏢 Datos empresa cargados para PDF: {self.datos_empresa.get('nombre_empresa', 'No disponible')}")
    
     def _setup_custom_styles(self):
         """Configurar estilos personalizados"""
@@ -35,6 +44,38 @@ class PDFGenerator:
             fontSize=9,
             textColor=colors.darkblue
         ))
+
+    def _obtener_datos_empresa_pdf(self):
+        """Obtener datos de empresa para usar en el PDF"""
+        try:
+            # 🔥 USAR DATOS REALES DE LA CONFIGURACIÓN
+            datos = self.datos_empresa
+            
+            empresa_info = {
+                'nombre_empresa': datos.get('nombre_empresa', 'LAB Servicios'),
+                'cuit': datos.get('cuit', '23-14852171-9'),
+                'direccion': datos.get('direccion', 'Río Neuquén 4100 - Plottier - Neuquén'),
+                'telefono': datos.get('telefono', '+542995576550'),
+                'email': datos.get('email', 'labservicios@outlook.com'),
+                'pagina_web': datos.get('pagina_web', 'https://www.labservicios.com.ar'),
+                'condiciones_comerciales': datos.get('condiciones_comerciales', '')
+            }
+            
+            print(f"📋 Datos empresa para PDF: {empresa_info['nombre_empresa']}")
+            return empresa_info
+            
+        except Exception as e:
+            print(f"❌ Error obteniendo datos empresa para PDF: {e}")
+            # 🔥 FALLBACK POR DEFECTO
+            return {
+                'nombre_empresa': 'LAB Servicios',
+                'cuit': '23-14852171-9',
+                'direccion': 'Río Neuquén 4100 - Plottier - Neuquén',
+                'telefono': '+542995576550',
+                'email': 'labservicios@outlook.com',
+                'pagina_web': 'https://www.labservicios.com.ar',
+                'condiciones_comerciales': 'Precios expresados en pesos Argentinos\nPlazo de entrega: Inmediata\nForma de Pago: 30 días'
+            }
 
     def _sanitizar_datos_presupuesto(self, presupuesto_data):
         """Sanitizar y convertir tipos de datos del presupuesto"""
@@ -72,172 +113,111 @@ class PDFGenerator:
             print(f"⚠️ Error sanitizando datos: {e}")
             return presupuesto_data
 
-    def generar_presupuesto(self, presupuesto_data, cliente_data):
-        """Generar PDF del presupuesto"""
+    def _build_logo_zone(self, canvas, doc, presupuesto_data):
+        """Zona fija de 3cm solo con logo y datos empresa - SIN presupuesto"""
+        canvas.saveState()
+        
+        empresa_info = self._obtener_datos_empresa_pdf()
+        pagina_web = empresa_info.get('pagina_web', 'https://www.labservicios.com.ar')
+        
+        # 🔥 LOGO A LA IZQUIERDA
         try:
-            # SANITIZAR DATOS ANTES DE USAR
-            presupuesto_data = self._sanitizar_datos_presupuesto(presupuesto_data)
-           
-            # Pedir ubicación para guardar
-            output_path = self._get_save_path(presupuesto_data, cliente_data)
-            if not output_path:
-                return None  # Usuario canceló
-            
-                    # Función para crear el pie de página en cada página
-            def add_footer(canvas, doc):
-                canvas.saveState()
+            logo_path = "logoLAB_form.jpg"
+            if os.path.exists(logo_path):
+                logo_x = 40
+                logo_y = A4[1] - 80  # Parte superior
                 
-                # Configurar el pie de página
-                footer_text = "LAB SERVICIOS SAS - Tel: +54 2995576550 - Email: info@labservicios.com"
+                # Enlace clickeable
+                canvas.linkURL(
+                    pagina_web,
+                    (logo_x, logo_y, logo_x + 80, logo_y + 40),
+                    relative=0
+                )
                 
-                # Posicionar en la parte inferior
-                canvas.setFont('Helvetica', 8)
-                canvas.setFillColor(colors.gray)
+                # Dibujar logo
+                canvas.drawImage(logo_path, logo_x, logo_y, width=80, height=40)
                 
-                # Centrar el texto en la parte inferior
-                page_width = A4[0]
-                text_width = canvas.stringWidth(footer_text, 'Helvetica', 8)
-                x_position = (page_width - text_width) / 2
-                
-                # Dibujar el pie de página
-                canvas.drawString(x_position, 30, footer_text)
-                
-                canvas.restoreState()
-           
-            # Crear documento
-            doc = SimpleDocTemplate(
-                output_path, 
-                pagesize=A4, 
-                topMargin=40, 
-                bottomMargin=60, 
-                leftMargin=40, 
-                rightMargin=40
-            )
-            
-            story = []
-           
-            # 1. ENCABEZADO
-            story.extend(self._build_header(presupuesto_data))
-           
-            # 2. INFORMACIÓN DEL CLIENTE
-            story.extend(self._build_cliente_section(cliente_data, presupuesto_data))
-           
-            # 3. ITEMS DEL PRESUPUESTO
-            story.extend(self._build_items_section(presupuesto_data))
-           
-            # 4. TOTALES
-            story.extend(self._build_totales_section(presupuesto_data))
-           
-            # 5. OBSERVACIONES Y CONDICIONES
-            story.extend(self._build_observaciones_section(presupuesto_data))
-           
-            # 6. PIE DE PÁGINA
-            #story.extend(self._build_footer())
-           
-            # Generar PDF CON FOOTER EN CADA PÁGINA
-            doc.build(story, onFirstPage=add_footer, onLaterPages=add_footer)
-           
-            # Mostrar mensaje de éxito
-            messagebox.showinfo(
-                "PDF Generado",
-                f"Presupuesto guardado como PDF:\n{os.path.basename(output_path)}"
-            )
-           
-            # Abrir el PDF automáticamente
-            self._abrir_pdf(output_path)
-           
-            return output_path
-           
+                print(f"🔗 Logo con enlace a: {pagina_web}")
         except Exception as e:
-            messagebox.showerror(
-                "Error al generar PDF",
-                f"No se pudo generar el PDF:\n{str(e)}"
-            )
-            return None
-    def _build_footer(self):
-        """Método vacío ya que el footer se maneja en cada página"""
-        return []  # 🔥 DEVOLVER LISTA VACÍA
-
-    def _get_save_path(self, presupuesto_data, cliente_data):
-        """Obtener ruta para guardar el archivo"""
-        root = tk.Tk()
-        root.withdraw()  # Ocultar ventana principal
-       
-        numero = presupuesto_data.get('numero', '')
-        cliente_nombre = cliente_data.get('nombre', '').replace(' ', '_')
-        fecha = datetime.now().strftime('%Y%m%d_%H%M')
-       
-        default_name = f"Presupuesto_{numero}_{cliente_nombre}_{fecha}.pdf"
-       
-        return filedialog.asksaveasfilename(
-            defaultextension=".pdf",
-            filetypes=[("Archivos PDF", "*.pdf"), ("Todos los archivos", "*.*")],
-            initialfile=default_name,
-            title="Guardar presupuesto como PDF"
-        )
+            print(f"❌ Error con logo: {e}")
+        
+        # 🔥 DATOS DE EMPRESA A LA DERECHA DEL LOGO (alineados)
+        canvas.setFont('Helvetica', 9)
+        datos_x = 140  # Más a la derecha del logo para mejor alineación
+        
+        canvas.drawString(datos_x, A4[1] - 45, empresa_info['nombre_empresa'])
+        canvas.drawString(datos_x, A4[1] - 55, f"CUIT: {empresa_info['cuit']}")
+        canvas.drawString(datos_x, A4[1] - 65, empresa_info['direccion'])
+        canvas.drawString(datos_x, A4[1] - 75, f"Tel: {empresa_info['telefono']}")
+        canvas.drawString(datos_x, A4[1] - 85, f"Email: {empresa_info['email']}")
+        
+        # 🔥 LÍNEA SEPARADORA DE LA ZONA
+        canvas.setStrokeColor(colors.gray)
+        canvas.setLineWidth(0.5)
+        canvas.line(40, A4[1] - 95, A4[0] - 40, A4[1] - 95)
+        
+        canvas.restoreState()
 
     def _build_header(self, presupuesto_data):
-        """Construir encabezado con número de presupuesto destacado"""
+        """Header simplificado - solo espacio para la zona del logo"""
         elements = []
         
-        try:
-            from reportlab.platypus import Image
-            logo_path = "logoLAB_form.jpg"
-            logo = Image(logo_path, width=80, height=40)
-        except Exception as e:
-            print(f"⚠️ Logo no encontrado: {e}")
-            logo = "LAB SERVICIOS"
+        # 🔥 NO necesitamos agregar espacio aquí porque ya tenemos margen superior
+        # El contenido automáticamente empieza después de los 3cm
         
-        # 🔥 FORMATEAR NÚMERO CON 5 DÍGITOS - VERSIÓN SEGURA
+        return elements  # 🔥 Devuelve lista vacía
+
+    def _build_header_for_other_pages(self, canvas, doc):
+        """Header para páginas posteriores (sin logo)"""
+        canvas.saveState()
+        canvas.setFont('Helvetica', 8)
+        canvas.drawString(40, A4[1] - 20, "LAB Servicios - Presupuesto")
+        canvas.restoreState()
+
+    def _build_cliente_section(self, cliente_data, presupuesto_data):
+        """Sección cliente con Presupuesto N° y Fecha a la derecha"""
+        elements = []
+        
+        # 🔥 AGREGAR ESPACIO DESPUÉS DE LA LÍNEA DIVISORIA
+        elements.append(Spacer(1, 15))  # 🔥 15 puntos de espacio después de la línea
+        
+        # 🔥 CREAR TABLA CON 2 COLUMNAS: Cliente a la izquierda, Presupuesto a la derecha
         numero_presupuesto = presupuesto_data.get('numero', '')
-        
         try:
-            # Intentar convertir a número y formatear
             if numero_presupuesto:
                 numero_int = int(numero_presupuesto)
                 numero_formateado = f"{numero_int:05d}"
             else:
                 numero_formateado = "00000"
-        except (ValueError, TypeError):
-            # Si hay error, usar el valor original
+        except:
             numero_formateado = str(numero_presupuesto) if numero_presupuesto else "00000"
-            print(f"⚠️ No se pudo formatear número de presupuesto: {numero_presupuesto}")
         
+        # Tabla con cliente izquierda / presupuesto derecha
         header_data = [
             [
-                logo,
-                "\nLAB SERVICIOS SAS\nCUIT: 20-12345678-9",
-                # 🔥 TEXTO MÁS GRANDE Y DESTACADO
-                f"PRESUPUESTO N° {numero_formateado}\nFecha: {datetime.now().strftime('%d/%m/%Y')}"
+                "",  # 🔥 CELDA VACÍA en lugar de "DATOS DEL CLIENTE"
+                f"PRESUPUESTO N° {numero_formateado}\n\nFecha: {datetime.now().strftime('%d/%m/%Y')}"
             ]
         ]
         
-        header_table = Table(header_data, colWidths=[80, 280, 140])
+        header_table = Table(header_data, colWidths=[360, 140])
         header_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('FONTSIZE', (2, 0), (2, 0), 12),           # 🔥 TEXTO MÁS GRANDE
-            ('FONTNAME', (2, 0), (2, 0), 'Helvetica-Bold'),  # 🔥 NEGRITA
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (1, 0), (1, 0), 11),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('ALIGN', (0, 0), (0, 0), 'CENTER'),
-            ('ALIGN', (1, 0), (1, 0), 'LEFT'),
-            ('ALIGN', (2, 0), (2, 0), 'RIGHT'),
+            ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+            ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
         ]))
         
         elements.append(header_table)
-        elements.append(Spacer(1, 20))
+        elements.append(Spacer(1, 3))  # 5🔥 MENOS ESPACIO aquí
         
-        return elements
-    def _build_cliente_section(self, cliente_data, presupuesto_data):
-        """Construir sección de información del cliente"""
-        elements = []
-       
-        # Título de sección
+        # 🔥 AGREGAR "DATOS DEL CLIENTE" COMO TÍTULO SEPARADO
         section_title = Paragraph("DATOS DEL CLIENTE", self.styles['Heading2'])
         elements.append(section_title)
-        elements.append(Spacer(1, 8))
-       
-        # Información del cliente
+        elements.append(Spacer(1, 5))
+        
+        # 🔥 INFORMACIÓN DETALLADA DEL CLIENTE (tabla normal)
         cliente_nombre = f"{cliente_data.get('nombre', '')} {cliente_data.get('apellido', '')}".strip()
         cliente_info = [
             ["Cliente:", cliente_nombre],
@@ -247,7 +227,7 @@ class PDFGenerator:
             ["Email:", cliente_data.get('email', 'No especificado') or 'No especificado'],
             ["Dirección:", cliente_data.get('direccion', 'No especificado')],
         ]
-       
+        
         cliente_table = Table(cliente_info, colWidths=[100, 400])
         cliente_table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
@@ -261,7 +241,7 @@ class PDFGenerator:
         ]))
         elements.append(cliente_table)
         elements.append(Spacer(1, 15))
-       
+        
         return elements
 
     def _build_items_section(self, presupuesto_data):
@@ -271,7 +251,7 @@ class PDFGenerator:
         # Título de sección
         section_title = Paragraph("DETALLE DEL PRESUPUESTO", self.styles['Heading2'])
         elements.append(section_title)
-        elements.append(Spacer(1, 8))
+        elements.append(Spacer(1, 3))
        
         # Encabezado de la tabla
         items_header = ['Código', 'Descripción', 'Cant.', 'Precio Unit.', 'Subtotal']
@@ -299,14 +279,14 @@ class PDFGenerator:
             ('FONTSIZE', (0, 0), (-1, -1), 8),
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1E3A8A')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),  # 🔥 CENTRAR ENCABEZADOS
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
             ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
            
             # Alineación
             ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
-            ('ALIGN', (0, 1), (0, -1), 'CENTER'),   # 🔥 Código centrado
+            ('ALIGN', (0, 1), (0, -1), 'CENTER'),
             ('ALIGN', (1, 1), (1, -1), 'LEFT'),
-            ('ALIGN', (2, 1), (2, -1), 'CENTER'),   # 🔥 Cantidad centrada
+            ('ALIGN', (2, 1), (2, -1), 'CENTER'),
            
             # Bordes y grid
             ('BOX', (0, 0), (-1, -1), 1, colors.black),
@@ -321,40 +301,33 @@ class PDFGenerator:
         return elements
 
     def _build_totales_section(self, presupuesto_data):
-        """Construir sección de totales - VERSIÓN MEJORADA"""
+        """Construir sección de totales"""
         elements = []
-    
+   
         subtotal = Decimal(str(presupuesto_data.get('subtotal', 0)))
         iva_porcentaje = Decimal(str(presupuesto_data.get('iva_porcentaje', 21)))
         iva_valor = Decimal(str(presupuesto_data.get('iva_valor', 0)))
         total = Decimal(str(presupuesto_data.get('total', 0)))
-    
+   
         totales_data = [
-            ["", ""],  # Espacio en blanco para separación
+            ["", ""],
             ["SUBTOTAL:", f"${subtotal:,.2f}"],
             [f"IVA ({iva_porcentaje}%):", f"${iva_valor:,.2f}"],
             ["TOTAL:", f"${total:,.2f}"]
         ]
-    
-        totales_table = Table(totales_data, colWidths=[250, 150])  # 🔥 MÁS ANCHO
+   
+        totales_table = Table(totales_data, colWidths=[250, 150])
         totales_table.setStyle(TableStyle([
-            # Primera fila (espacio en blanco)
             ('FONTSIZE', (0, 0), (-1, 0), 8),
             ('BACKGROUND', (0, 0), (-1, 0), colors.white),
-            
-            # Etiquetas (columna izquierda)
             ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 1), (0, -1), 12),
-            ('ALIGN', (0, 1), (0, -1), 'RIGHT'),  # 🔥 ETIQUETAS a la DERECHA
+            ('ALIGN', (0, 1), (0, -1), 'RIGHT'),
             ('VALIGN', (0, 1), (0, -1), 'MIDDLE'),
-            
-            # Valores (columna derecha)
             ('FONTNAME', (1, 1), (1, -1), 'Helvetica-Bold'),
             ('FONTSIZE', (1, 1), (1, -1), 12),
-            ('ALIGN', (1, 1), (1, -1), 'RIGHT'),  # 🔥 VALORES a la DERECHA
+            ('ALIGN', (1, 1), (1, -1), 'RIGHT'),
             ('VALIGN', (1, 1), (1, -1), 'MIDDLE'),
-            
-            # Total (última fila)
             ('FONTSIZE', (-1, -1), (-1, -1), 14),
             ('BACKGROUND', (-1, -1), (-1, -1), colors.HexColor('#10B981')),
             ('TEXTCOLOR', (-1, -1), (-1, -1), colors.white),
@@ -362,14 +335,18 @@ class PDFGenerator:
         ]))
         elements.append(totales_table)
         elements.append(Spacer(1, 20))
-    
+   
         return elements
 
     def _build_observaciones_section(self, presupuesto_data):
-        """Construir sección de observaciones y condiciones"""
+        """Construir sección de observaciones y condiciones con datos reales"""
         elements = []
         
-        # Observaciones (se mantiene igual)
+        # 🔥 OBTENER CONDICIONES COMERCIALES DE LA CONFIGURACIÓN
+        empresa_info = self._obtener_datos_empresa_pdf()
+        condiciones_por_defecto = empresa_info.get('condiciones_comerciales', '')
+        
+        # Observaciones específicas del presupuesto
         if presupuesto_data.get('observaciones'):
             obs_title = Paragraph("OBSERVACIONES", self.styles['Heading2'])
             elements.append(obs_title)
@@ -380,47 +357,47 @@ class PDFGenerator:
             elements.append(obs_text)
             elements.append(Spacer(1, 10))
         
-        # 🔥 OBTENER FECHA DE VALIDEZ PARA REEMPLAZAR "Mantenimiento de oferta"
-        valido_hasta = presupuesto_data.get('valido_hasta')
-        validez_texto = "15 días"  # 🔥 Mantener el texto por defecto del formulario
+        # 🔥 CONDICIONES COMERCIALES - USAR LAS DE LA CONFIGURACIÓN SI NO HAY ESPECÍFICAS
+        condiciones_presupuesto = presupuesto_data.get('condiciones_comerciales', condiciones_por_defecto)
         
-        if valido_hasta:
-            try:
-                # La fecha viene en formato YYYY-MM-DD desde la API
-                if 'T' in str(valido_hasta):
-                    valido_hasta = str(valido_hasta).split('T')[0]
-                
-                # Convertir de YYYY-MM-DD a DD/MM/YYYY
-                fecha_obj = datetime.strptime(str(valido_hasta), '%Y-%m-%d')
-                validez_texto = f"hasta el {fecha_obj.strftime('%d/%m/%Y')}"
-            except (ValueError, TypeError) as e:
-                print(f"⚠️ Error formateando fecha en condiciones: {e}")
-                validez_texto = str(valido_hasta)
-        
-        # 🔥 CONDICIONES COMERCIALES - MANTENER LAS DEL FORMULARIO
-        if presupuesto_data.get('condiciones_comerciales'):
+        if condiciones_presupuesto:
             cond_title = Paragraph("CONDICIONES COMERCIALES", self.styles['Heading2'])
             elements.append(cond_title)
             elements.append(Spacer(1, 5))
             
-            condiciones_base = presupuesto_data.get('condiciones_comerciales', '')
+            # 🔥 OBTENER FECHA DE VALIDEZ
+            valido_hasta = presupuesto_data.get('valido_hasta')
+            validez_texto = "15 días"
             
-            # 🔥 REEMPLAZAR "Mantenimiento de oferta: 15 días" por la fecha específica
-            # Buscar y reemplazar la línea completa
+            if valido_hasta:
+                try:
+                    if 'T' in str(valido_hasta):
+                        valido_hasta = str(valido_hasta).split('T')[0]
+                    
+                    fecha_obj = datetime.strptime(str(valido_hasta), '%Y-%m-%d')
+                    validez_texto = f"hasta el {fecha_obj.strftime('%d/%m/%Y')}"
+                except (ValueError, TypeError) as e:
+                    print(f"⚠️ Error formateando fecha en condiciones: {e}")
+                    validez_texto = str(valido_hasta)
+            
+            # 🔥 PROCESAR CONDICIONES
+            condiciones_base = condiciones_presupuesto
+            
+            # Reemplazar o agregar línea de validez
             lineas = condiciones_base.split('\n')
             lineas_actualizadas = []
             
+            validez_encontrada = False
             for linea in lineas:
-                if 'Mantenimiento de oferta' in linea:
-                    # 🔥 REEMPLAZAR con la validez específica
+                if any(term in linea.lower() for term in ['mantenimiento', 'validez', 'vigencia']):
                     linea_actualizada = f"Validez de oferta: {validez_texto}"
                     lineas_actualizadas.append(linea_actualizada)
+                    validez_encontrada = True
                 else:
-                    # 🔥 MANTENER las demás líneas tal cual vienen del formulario
                     lineas_actualizadas.append(linea)
             
-            # Si no encontró "Mantenimiento de oferta", agregar la línea de validez
-            if 'Mantenimiento de oferta' not in condiciones_base:
+            # Si no encontró línea de validez, agregarla
+            if not validez_encontrada:
                 lineas_actualizadas.append(f"Validez de oferta: {validez_texto}")
             
             condiciones_texto = '<br/>'.join(lineas_actualizadas)
@@ -430,31 +407,53 @@ class PDFGenerator:
         
         return elements
 
-    def _build_footer(self):
-        """Construir pie de página"""
-        elements = []
-        # Agregar espacio flexible para empujar el footer hacia abajo
-        elements.append(Spacer(1, 20))
+    def _build_footer(self, canvas, doc):
+        """Construir pie de página con datos reales de la empresa"""
+        canvas.saveState()
+        
+        # 🔥 OBTENER DATOS REALES PARA EL FOOTER
+        empresa_info = self._obtener_datos_empresa_pdf()
+        
+        footer_text = f"{empresa_info['nombre_empresa']} - Tel: {empresa_info['telefono']} - Email: {empresa_info['email']}"
+        
+        # Configurar el pie de página
+        canvas.setFont('Helvetica', 8)
+        canvas.setFillColor(colors.gray)
+        
+        # Centrar el texto en la parte inferior
+        page_width = A4[0]
+        text_width = canvas.stringWidth(footer_text, 'Helvetica', 8)
+        x_position = (page_width - text_width) / 2
+        
+        # Dibujar el pie de página
+        canvas.drawString(x_position, 30, footer_text)
+        
+        canvas.restoreState()
+
+    def _get_save_path(self, presupuesto_data, cliente_data):
+        """Obtener ruta para guardar el archivo"""
+        root = tk.Tk()
+        root.withdraw()
        
-        footer_text = """
-        <para alignment="center">
-        <font color="gray" size="8">
-        LAB SERVICIOS SAS - Tel: +54 2995576550 - Email: info@labservicios.com<br/>
-        </font>
-        </para>
-        """
+        numero = presupuesto_data.get('numero', '')
+        cliente_nombre = cliente_data.get('nombre', '').replace(' ', '_')
+        fecha = datetime.now().strftime('%Y%m%d_%H%M')
        
-        footer = Paragraph(footer_text, self.styles['Normal'])
-        elements.append(footer)
+        default_name = f"Presupuesto_{numero}_{cliente_nombre}_{fecha}.pdf"
        
-        return elements
+        return filedialog.asksaveasfilename(
+            defaultextension=".pdf",
+            filetypes=[("Archivos PDF", "*.pdf"), ("Todos los archivos", "*.*")],
+            initialfile=default_name,
+            title="Guardar presupuesto como PDF"
+        )
 
     def _abrir_pdf(self, pdf_path):
         """Abrir el PDF automáticamente"""
         try:
-            if os.name == 'nt':  # Windows
+            if os.name == 'nt':
                 os.startfile(pdf_path)
-            else:  # macOS y Linux
+            else:
                 import subprocess
                 subprocess.call(['open', pdf_path] if os.name == 'posix' else ['xdg-open', pdf_path])
         except Exception as e:
@@ -471,7 +470,6 @@ class PDFGenerator:
         }
         return condiciones.get(condicion_iva, condicion_iva)
 
-    # NOTA: Ya no se usa _get_estado_display en el PDF, pero lo dejamos por si acaso
     def _get_estado_display(self, estado):
         """Convertir código de estado a texto legible"""
         estados = {
@@ -481,6 +479,76 @@ class PDFGenerator:
             'rechazado': 'Rechazado'
         }
         return estados.get(estado, estado)
+
+    def generar_presupuesto(self, presupuesto_data, cliente_data):
+        """Generar PDF del presupuesto con zona fija de 3cm"""
+        try:
+            # SANITIZAR DATOS ANTES DE USAR
+            presupuesto_data = self._sanitizar_datos_presupuesto(presupuesto_data)
+            
+            # 🔥 ACTUALIZAR DATOS DE EMPRESA (por si cambiaron)
+            self.datos_empresa = self.config_manager.obtener_datos_empresa()
+            
+            # Pedir ubicación para guardar
+            output_path = self._get_save_path(presupuesto_data, cliente_data)
+            if not output_path:
+                return None
+
+            # 🔥 CREAR DOCUMENTO CON ZONA DE 3CM ARRIBA
+            doc = SimpleDocTemplate(
+                output_path,
+                pagesize=A4,
+                topMargin=85,        # 🔥 3 CM = 85 PUNTOS
+                bottomMargin=60,
+                leftMargin=40,
+                rightMargin=40
+            )
+            
+            story = []
+            
+            # 1. HEADER (vacío - el logo va en zona fija)
+            story.extend(self._build_header(presupuesto_data))
+            
+            # 2. INFORMACIÓN DEL CLIENTE (con Presupuesto N° y Fecha)
+            story.extend(self._build_cliente_section(cliente_data, presupuesto_data))
+            
+            # 3. ITEMS DEL PRESUPUESTO
+            story.extend(self._build_items_section(presupuesto_data))
+            
+            # 4. TOTALES
+            story.extend(self._build_totales_section(presupuesto_data))
+            
+            # 5. OBSERVACIONES Y CONDICIONES
+            story.extend(self._build_observaciones_section(presupuesto_data))
+            
+            # 🔥 GENERAR PDF CON ZONA DE LOGO FIJA
+            def first_page(canvas, doc):
+                self._build_logo_zone(canvas, doc, presupuesto_data)  # 🔥 ZONA DE 3CM
+                self._build_footer(canvas, doc)
+            
+            def other_pages(canvas, doc):
+                self._build_logo_zone(canvas, doc, presupuesto_data)  # 🔥 ZONA EN TODAS LAS PÁGINAS
+                self._build_footer(canvas, doc)
+            
+            doc.build(story, onFirstPage=first_page, onLaterPages=other_pages)
+            
+            # Mostrar mensaje de éxito
+            messagebox.showinfo(
+                "PDF Generado",
+                f"Presupuesto guardado como PDF:\nLogo con enlace a página web\n{os.path.basename(output_path)}"
+            )
+            
+            # Abrir el PDF automáticamente
+            self._abrir_pdf(output_path)
+            
+            return output_path
+            
+        except Exception as e:
+            messagebox.showerror(
+                "Error al generar PDF",
+                f"No se pudo generar el PDF:\n{str(e)}"
+            )
+            return None
 
 # Función de conveniencia para uso rápido
 def generar_presupuesto_pdf(presupuesto_data, cliente_data):
@@ -495,7 +563,7 @@ if __name__ == "__main__":
     # Datos de ejemplo
     ejemplo_presupuesto = {
         'numero': '999',
-        'estado': 'enviado',  # Esto ya no aparece en el PDF
+        'estado': 'enviado',
         'valido_hasta': '30/12/2024',
         'subtotal': 1000.00,
         'iva_porcentaje': 21.0,

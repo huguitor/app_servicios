@@ -33,6 +33,9 @@ class DialogoSeleccionProducto:
         self.dialogo.geometry("400x200")
         self.dialogo.transient(self.parent)
         self.dialogo.grab_set()
+
+        # 🔥 CENTRAR LA VENTANA
+        self.center_window()
        
         # Variables
         self.producto_var = tk.StringVar()
@@ -55,7 +58,27 @@ class DialogoSeleccionProducto:
        
         self.dialogo.wait_window()
         return self.resultado
-   
+
+    def center_window(self):
+        """Centrar la ventana en la pantalla"""
+        # Esperar a que la ventana se cree
+        self.dialogo.update_idletasks()
+        
+        # Obtener dimensiones de la ventana
+        width = self.dialogo.winfo_width()
+        height = self.dialogo.winfo_height()
+        
+        # Obtener dimensiones de la pantalla
+        screen_width = self.dialogo.winfo_screenwidth()
+        screen_height = self.dialogo.winfo_screenheight()
+        
+        # Calcular posición centrada
+        x = (screen_width - width) // 2
+        y = (screen_height - height) // 2
+        
+        # Aplicar posición
+        self.dialogo.geometry(f"+{x}+{y}")
+
     def aceptar(self):
         try:
             producto_texto = self.producto_var.get()
@@ -93,6 +116,9 @@ class DialogoSeleccionServicio:
         self.dialogo.geometry("400x200")
         self.dialogo.transient(self.parent)
         self.dialogo.grab_set()
+        
+        # 🔥 CENTRAR LA VENTANA
+        self.center_window()
        
         # Variables
         self.servicio_var = tk.StringVar()
@@ -115,7 +141,26 @@ class DialogoSeleccionServicio:
        
         self.dialogo.wait_window()
         return self.resultado
-   
+
+    def center_window(self):
+        """Centrar la ventana en la pantalla"""
+        # Esperar a que la ventana se cree
+        self.dialogo.update_idletasks()
+        
+        # Obtener dimensiones de la ventana
+        width = self.dialogo.winfo_width()
+        height = self.dialogo.winfo_height()
+        
+        # Obtener dimensiones de la pantalla
+        screen_width = self.dialogo.winfo_screenwidth()
+        screen_height = self.dialogo.winfo_screenheight()
+        
+        # Calcular posición centrada
+        x = (screen_width - width) // 2
+        y = (screen_height - height) // 2
+        
+        # Aplicar posición
+        self.dialogo.geometry(f"+{x}+{y}")
     def aceptar(self):
         try:
             servicio_texto = self.servicio_var.get()
@@ -301,7 +346,13 @@ class FormularioPresupuesto:
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
     
         # Cabecera del presupuesto
-        header_frame = ttk.LabelFrame(main_frame, text="📋 Información del Presupuesto", padding="10")
+        titulo_frame = "📋 Información del Presupuesto"
+        if not self.es_nuevo and self.presupuesto_data:
+            numero = self.presupuesto_data.get('numero')
+            if numero:
+                titulo_frame += f" N° {numero}"
+                
+        header_frame = ttk.LabelFrame(main_frame, text=titulo_frame, padding="10")
         header_frame.pack(fill=tk.X, pady=(0, 10))
     
         # Fila 0: Cliente y Fecha de validez

@@ -1,4 +1,4 @@
-# app_escritorio/configuracion_window.py (VERSIÓN CORREGIDA)
+# app_escritorio/configuracion_window.py 
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from configuracion_manager import ConfiguracionManager
