@@ -161,8 +161,8 @@ class PresupuestosWindow:
         ttk.Button(button_frame, text="❌ Anular",
                   command=self.anular_presupuesto).pack(side=tk.LEFT, padx=2)
        
-        ttk.Button(button_frame, text="🗑️ Eliminar",
-                  command=self.eliminar_presupuesto).pack(side=tk.LEFT, padx=2)
+        # ttk.Button(button_frame, text="🗑️ Eliminar",
+        #           command=self.eliminar_presupuesto).pack(side=tk.LEFT, padx=2)
         ttk.Button(button_frame, text="🔄 Recargar",
                   command=self.cargar_presupuestos).pack(side=tk.LEFT, padx=2)
        

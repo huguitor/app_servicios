@@ -19,6 +19,9 @@ except ImportError:
     CALENDAR_AVAILABLE = False
     print("⚠️ tkcalendar no disponible. Usando campo de texto para fechas.")
 
+# 🔥 IMPORTAR EL DIÁLOGO DE ANULACIÓN
+from dialogo_anular_presupuesto import DialogoAnularPresupuesto
+
 
 class DialogoSeleccionProducto:
     """Diálogo para seleccionar producto y cantidad"""
@@ -433,16 +436,21 @@ class FormularioPresupuesto:
         
         if not self.es_nuevo:
             ttk.Label(header_frame, text="Estado:").grid(row=1, column=2, sticky=tk.W, pady=5, padx=(20, 0))
-            estado_combo = ttk.Combobox(header_frame, textvariable=self.estado_var, width=15, 
+            self.estado_combo = ttk.Combobox(header_frame, textvariable=self.estado_var, width=15, 
                                       state="readonly" if not self.solo_lectura else "disabled")
             
             # 🔥 AGREGAR ESTADO "ANULADO" AL COMBOBOX
             if self.es_anulado:
-                estado_combo['values'] = ['anulado']
+                self.estado_combo['values'] = ['anulado']
             else:
-                estado_combo['values'] = ['borrador', 'enviado', 'aceptado', 'rechazado', 'anulado']
+                self.estado_combo['values'] = ['borrador', 'enviado', 'aceptado', 'rechazado', 'anulado']
                 
-            estado_combo.grid(row=1, column=3, sticky=tk.W, pady=5, padx=(10, 0))
+            self.estado_combo.grid(row=1, column=3, sticky=tk.W, pady=5, padx=(10, 0))
+            
+            # 🔥 AGREGAR BINDING PARA DETECTAR CUANDO SE SELECCIONA "ANULADO"
+            if not self.solo_lectura:
+                self.estado_combo.bind('<<ComboboxSelected>>', self.manejar_cambio_estado)
+            
             print("✅ Selector de estado configurado")
     
         header_frame.columnconfigure(1, weight=1)
@@ -565,6 +573,120 @@ class FormularioPresupuesto:
         
         print("🎉 INTERFAZ GRÁFICA CREADA EXITOSAMENTE")
 
+    def manejar_cambio_estado(self, event):
+        """Manejar cambio de estado en el combobox - ESPECIAL PARA ANULACIÓN"""
+        nuevo_estado = self.estado_var.get()
+        print(f"🔄 Cambio de estado detectado: {nuevo_estado}")
+        
+        if nuevo_estado == 'anulado':
+            # 🔥 PREVENIR CAMBIO DIRECTO A ANULADO - ABRIR DIÁLOGO DE ANULACIÓN
+            print("⚠️ Intento de anulación desde combobox - Abriendo diálogo de anulación")
+            
+            # Revertir el cambio en el combobox
+            estado_anterior = self.presupuesto_data.get('estado', 'borrador')
+            self.estado_var.set(estado_anterior)
+            
+            # Abrir diálogo de anulación
+            self.abrir_dialogo_anulacion()
+    
+    def abrir_dialogo_anulacion(self):
+        """Abrir diálogo de anulación desde el formulario de edición"""
+        print("🔧 Abriendo diálogo de anulación desde formulario de edición...")
+        
+        dialogo = DialogoAnularPresupuesto(
+            self.window,
+            self.manager,
+            self.presupuesto_data['id'],
+            self.presupuesto_data
+        )
+        
+        # 🔥 ESPERAR A QUE EL DIÁLOGO TERMINE COMPLETAMENTE
+        self.window.wait_window(dialogo)  # ✅ CORRECTO
+        
+        # 🔥 ACTUALIZAR INMEDIATAMENTE SI SE ANULÓ EXITOSAMENTE
+        if hasattr(dialogo, 'anulado_exitosamente') and dialogo.anulado_exitosamente:
+            print("✅ Presupuesto anulado desde formulario - Actualizando interfaz inmediatamente")
+            
+            # 1. Actualizar el estado en el combobox
+            self.estado_var.set('anulado')
+            
+            # 2. Marcar como anulado y solo lectura
+            self.es_anulado = True
+            self.solo_lectura = True
+            
+            # 3. Actualizar título de la ventana
+            self.window.title("📋 Presupuesto Anulado - Solo Lectura")
+            
+            # 4. Actualizar controles a solo lectura
+            self.actualizar_controles_solo_lectura()
+            
+            # 5. Recargar datos para mostrar información actualizada
+            self.cargar_datos()
+            
+            # 6. Actualizar la lista de presupuestos en la ventana principal
+            if hasattr(self.presupuestos_window, 'cargar_presupuestos'):
+                self.presupuestos_window.cargar_presupuestos()
+                print("✅ Lista de presupuestos actualizada en ventana principal")
+            
+            messagebox.showinfo("Éxito", "✅ Presupuesto anulado correctamente")
+        else:
+            print("❌ Anulación cancelada o fallida - Manteniendo estado anterior")
+
+    def actualizar_controles_solo_lectura(self):
+        """Actualizar todos los controles a modo solo lectura después de anular"""
+        print("🔧 Actualizando controles a modo solo lectura...")
+        
+        # Deshabilitar combobox de estado
+        self.estado_combo.config(state="disabled")
+        
+        # Deshabilitar otros controles editables
+        self.cliente_combo.config(state="disabled")
+        if CALENDAR_AVAILABLE:
+            self.valido_hasta_calendar.config(state="readonly")
+        else:
+            self.valido_hasta_entry.config(state="readonly")
+        
+        # Deshabilitar botones de items
+        for widget in self.window.winfo_children():
+            if isinstance(widget, ttk.Frame):
+                for child in widget.winfo_children():
+                    if isinstance(child, ttk.Frame):
+                        for button in child.winfo_children():
+                            if isinstance(button, ttk.Button):
+                                if "Agregar" in button.cget('text') or "Eliminar" in button.cget('text'):
+                                    button.config(state="disabled")
+        
+        # Deshabilitar campos de texto
+        self.observaciones_text.config(state="disabled")
+        self.condiciones_text.config(state="disabled")
+        
+        # Deshabilitar botones de acción
+        for widget in self.window.winfo_children():
+            if isinstance(widget, ttk.Frame):
+                for button in widget.winfo_children():
+                    if isinstance(button, ttk.Button):
+                        if "Guardar" in button.cget('text') or "Adjuntos" in button.cget('text'):
+                            button.config(state="disabled")
+        
+        # Cambiar estilo visual para indicar que está anulado
+        self.configurar_estilo_anulado()
+        
+        print("✅ Todos los controles actualizados a modo solo lectura")
+
+    def configurar_estilo_anulado(self):
+        """Configurar estilo visual especial para presupuestos anulados"""
+        try:
+            style = ttk.Style()
+            style.configure('Anulado.TLabelframe', 
+                           background='#f8f9fa',
+                           bordercolor='#dc3545')
+            style.configure('Anulado.TLabelframe.Label', 
+                           foreground='#dc3545',
+                           background='#f8f9fa',
+                           font=('Arial', 10, 'bold'))
+        except Exception as e:
+            print(f"⚠️ Error configurando estilos: {e}")
+
     def configurar_estilos(self):
         """Configurar estilos visuales para presupuestos anulados"""
         style = ttk.Style()
@@ -599,6 +721,7 @@ class FormularioPresupuesto:
         else:
             messagebox.showinfo("📋 Detalles de Anulación", 
                               "No hay información adicional disponible sobre la anulación.")
+
 
     def agregar_producto(self):
         """Abrir diálogo para agregar producto"""

@@ -10,9 +10,10 @@ class DialogoAnularPresupuesto(tk.Toplevel):
         self.presupuesto_id = presupuesto_id
         self.presupuesto_info = presupuesto_info
         self.resultado = None
+        self.anulado_exitosamente = False  # 🔥 NUEVA VARIABLE CRÍTICA
         
         self.title("⚠️ Anular Presupuesto")
-        self.geometry("700x550")
+        self.geometry("600x550")
         self.resizable(False, False)
         self.configure(bg='#f0f0f0')
         
@@ -20,43 +21,12 @@ class DialogoAnularPresupuesto(tk.Toplevel):
         self.transient(parent)
         self.grab_set()
         
-        # Configurar estilos ANTES de crear widgets
-        self.configurar_estilos()
-        
         self.crear_widgets()
         self.center_on_parent()
         
         # Bind Enter key para confirmar
         self.bind('<Return>', lambda e: self.confirmar_anulacion())
         self.bind('<Escape>', lambda e: self.cancelar())
-    
-    def configurar_estilos(self):
-        """Configurar estilos para los botones"""
-        style = ttk.Style()
-        
-        # Estilo para botón de anulación habilitado
-        style.configure(
-            "Danger.TButton", 
-            background="#d63031", 
-            foreground="white",  # Texto blanco cuando está habilitado
-            borderwidth=1,
-            focuscolor="none"
-        )
-        
-        # Estilo para botón deshabilitado
-        style.configure(
-            "DangerDisabled.TButton",
-            background="#f5b7b1",
-            foreground="#7f8c8d",  # Texto gris cuando está deshabilitado
-            borderwidth=1
-        )
-        
-        # Mapeo de estados
-        style.map("Danger.TButton",
-                 background=[('active', '#c0392b'), 
-                           ('disabled', '#f5b7b1')],
-                 foreground=[('active', 'white'),
-                           ('disabled', '#7f8c8d')])  # Texto gris cuando está deshabilitado
     
     def center_on_parent(self):
         """Centrar el diálogo sobre la ventana padre"""
@@ -166,9 +136,21 @@ class DialogoAnularPresupuesto(tk.Toplevel):
         def validar_motivo(event=None):
             motivo = self.motivo_text.get("1.0", tk.END).strip()
             if motivo:
-                self.btn_anular.config(state='normal', style="Danger.TButton")
+                self.btn_anular.config(
+                    state='normal',
+                    bg='#d63031',  # Rojo intenso
+                    fg='white',    # Texto blanco
+                    activebackground='#c0392b',  # Rojo más oscuro al hacer hover
+                    activeforeground='white'
+                )
             else:
-                self.btn_anular.config(state='disabled', style="DangerDisabled.TButton")
+                self.btn_anular.config(
+                    state='disabled',
+                    bg='#f5b7b1',  # Rosa claro
+                    fg='#7f8c8d',  # Texto gris
+                    activebackground='#f5b7b1',
+                    activeforeground='#7f8c8d'
+                )
         
         self.motivo_text.bind('<KeyRelease>', validar_motivo)
         
@@ -179,22 +161,50 @@ class DialogoAnularPresupuesto(tk.Toplevel):
         # Configurar el frame de botones para que los botones estén a la derecha
         botones_frame.columnconfigure(0, weight=1)  # Espacio flexible a la izquierda
         
-        ttk.Button(
+        # Configuración común para ambos botones
+        boton_font = ('Arial', 10)  # Misma fuente y tamaño
+        boton_width = 20  # Mismo ancho (un poco más largo para que entre el texto)
+        boton_height = 1  # Misma altura
+        
+        # Botón Cancelar (tk.Button para igualar estilo)
+        self.btn_cancelar = tk.Button(
             botones_frame, 
             text="❌ Cancelar", 
             command=self.cancelar,
-            width=15
-        ).grid(row=0, column=1, padx=(10, 0))
+            width=boton_width,
+            height=boton_height,
+            font=boton_font,
+            relief='raised',
+            borderwidth=2,
+            bg='#95a5a6',  # Gris
+            fg='white',     # Texto blanco
+            activebackground='#7f8c8d',  # Gris más oscuro al hacer hover
+            activeforeground='white'
+        )
+        self.btn_cancelar.grid(row=0, column=1, padx=(10, 5))
         
-        self.btn_anular = ttk.Button(
+        # Botón Confirmar Anulación (tk.Button)
+        self.btn_anular = tk.Button(
             botones_frame, 
             text="✅ Confirmar Anulación", 
             command=self.confirmar_anulacion,
-            style="DangerDisabled.TButton",  # Empieza deshabilitado
-            width=18,
+            width=boton_width,
+            height=boton_height,
+            font=boton_font,
+            relief='raised',
+            borderwidth=2,
             state='disabled'
         )
-        self.btn_anular.grid(row=0, column=2, padx=(10, 0))
+        self.btn_anular.grid(row=0, column=2, padx=(5, 0))
+        
+        # Configurar estado inicial del botón de anulación
+        self.btn_anular.config(
+            state='disabled',
+            bg='#f5b7b1',  # Rosa claro
+            fg='#7f8c8d',  # Texto gris
+            activebackground='#f5b7b1',
+            activeforeground='#7f8c8d'
+        )
         
         # Asegurar que la ventana tenga el tamaño mínimo correcto
         self.update_idletasks()
@@ -239,7 +249,12 @@ class DialogoAnularPresupuesto(tk.Toplevel):
     def ejecutar_anulacion(self, motivo):
         """Ejecutar la anulación"""
         # Deshabilitar todos los controles durante la anulación
-        self.btn_anular.config(state='disabled', style="DangerDisabled.TButton")
+        self.btn_anular.config(
+            state='disabled',
+            bg='#f5b7b1',
+            fg='#7f8c8d'
+        )
+        self.btn_cancelar.config(state='disabled')
         
         # Crear frame de progreso en la parte inferior
         progress_frame = ttk.Frame(self)
@@ -281,6 +296,9 @@ class DialogoAnularPresupuesto(tk.Toplevel):
             # 🔥 CORRECCIÓN CRÍTICA: La API devuelve el presupuesto serializado, no un campo 'success'
             # Si hay resultado y no hay error, consideramos que fue exitoso
             if resultado is not None:
+                # 🔥 MARCAR COMO ANULADO EXITOSAMENTE
+                self.anulado_exitosamente = True
+                
                 messagebox.showinfo(
                     "Anulación Exitosa",
                     f"✅ El presupuesto ha sido anulado correctamente.\n\n"
@@ -298,7 +316,14 @@ class DialogoAnularPresupuesto(tk.Toplevel):
                     "Error al Anular",
                     "No se pudo anular el presupuesto. Por favor, intente nuevamente."
                 )
-                self.btn_anular.config(state='normal', style="Danger.TButton")
+                self.btn_anular.config(
+                    state='normal',
+                    bg='#d63031',
+                    fg='white',
+                    activebackground='#c0392b',
+                    activeforeground='white'
+                )
+                self.btn_cancelar.config(state='normal')
         
         def mostrar_error(error):
             """CORREGIDO: Recibir el error como parámetro"""
@@ -308,7 +333,14 @@ class DialogoAnularPresupuesto(tk.Toplevel):
                 "Error de Conexión",
                 f"❌ Error al anular el presupuesto:\n{str(error)}"
             )
-            self.btn_anular.config(state='normal', style="Danger.TButton")
+            self.btn_anular.config(
+                state='normal',
+                bg='#d63031',
+                fg='white',
+                activebackground='#c0392b',
+                activeforeground='white'
+            )
+            self.btn_cancelar.config(state='normal')
         
         # Ejecutar en un hilo separado (en una aplicación real)
         self.after(100, anular)
