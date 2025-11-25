@@ -194,6 +194,14 @@ class FormularioPresupuesto:
         self.presupuesto_data = presupuesto_data
         self.es_nuevo = presupuesto_data is None
         self.solo_lectura = solo_lectura
+        
+        # 🔥 DETECTAR SI ES UN PRESUPUESTO ANULADO
+        self.es_anulado = False
+        if not self.es_nuevo and presupuesto_data:
+            self.es_anulado = presupuesto_data.get('estado') == 'anulado'
+            if self.es_anulado:
+                print("⚠️ PRESUPUESTO ANULADO - Modo solo lectura forzado")
+                self.solo_lectura = True  # Forzar solo lectura para anulados
        
         # ✅ INICIALIZAR MANAGERS
         self.manager = PresupuestosManager()
@@ -209,11 +217,24 @@ class FormularioPresupuesto:
        
         # ✅ CREAR VENTANA
         self.window = tk.Toplevel(parent)
-        self.window.title("Ver Presupuesto" if solo_lectura else
-                         "Nuevo Presupuesto" if self.es_nuevo else "Editar Presupuesto")
+        
+        # 🔥 TÍTULO ESPECIAL PARA PRESUPUESTOS ANULADOS
+        if self.es_anulado:
+            self.window.title("📋 Presupuesto Anulado - Solo Lectura")
+        elif solo_lectura:
+            self.window.title("📋 Ver Presupuesto")
+        elif self.es_nuevo:
+            self.window.title("🆕 Nuevo Presupuesto")
+        else:
+            self.window.title("✏️ Editar Presupuesto")
+            
         self.window.geometry("900x700")
         self.window.transient(parent)
         self.window.grab_set()
+        
+        # 🔥 COLOR DE FONDO ESPECIAL PARA ANULADOS
+        if self.es_anulado:
+            self.window.configure(bg='#f8f9fa')
        
         self.center_window(900, 700)
         
@@ -347,19 +368,27 @@ class FormularioPresupuesto:
     
         # Cabecera del presupuesto
         titulo_frame = "📋 Información del Presupuesto"
-        if not self.es_nuevo and self.presupuesto_data:
+        if self.es_anulado:
+            titulo_frame = "❌ PRESUPUESTO ANULADO - SOLO LECTURA"
+        elif not self.es_nuevo and self.presupuesto_data:
             numero = self.presupuesto_data.get('numero')
             if numero:
                 titulo_frame += f" N° {numero}"
                 
         header_frame = ttk.LabelFrame(main_frame, text=titulo_frame, padding="10")
+        
+        # 🔥 ESTILO ESPECIAL PARA ANULADOS
+        if self.es_anulado:
+            header_frame.configure(style='Anulado.TLabelframe')
+        
         header_frame.pack(fill=tk.X, pady=(0, 10))
     
         # Fila 0: Cliente y Fecha de validez
         ttk.Label(header_frame, text="Cliente:*").grid(row=0, column=0, sticky=tk.W, pady=5)
         
         # Combobox de clientes
-        self.cliente_combo = ttk.Combobox(header_frame, textvariable=self.cliente_var, width=50, state="readonly")
+        self.cliente_combo = ttk.Combobox(header_frame, textvariable=self.cliente_var, width=50, 
+                                         state="readonly" if not self.solo_lectura else "disabled")
         nombres_clientes = [self.obtener_nombre_cliente(c) for c in self.clientes]
         self.cliente_combo['values'] = nombres_clientes
         print(f"🔧 Combobox clientes cargado con {len(nombres_clientes)} opciones")        
@@ -380,7 +409,8 @@ class FormularioPresupuesto:
                 mindate=datetime.now(),
                 year=fecha_default.year,
                 month=fecha_default.month,
-                day=fecha_default.day
+                day=fecha_default.day,
+                state="readonly" if self.solo_lectura else "normal"
             )
             self.valido_hasta_calendar.grid(row=0, column=3, sticky=tk.W, pady=5, padx=(10, 0))
             print("✅ Calendario de fecha configurado")
@@ -388,21 +418,30 @@ class FormularioPresupuesto:
             self.valido_hasta_var = tk.StringVar(self.window)
             fecha_default = (datetime.now() + timedelta(days=30)).strftime('%d/%m/%Y')
             self.valido_hasta_var.set(fecha_default)
-            self.valido_hasta_entry = ttk.Entry(header_frame, textvariable=self.valido_hasta_var, width=12)
+            self.valido_hasta_entry = ttk.Entry(header_frame, textvariable=self.valido_hasta_var, width=12,
+                                              state="readonly" if self.solo_lectura else "normal")
             self.valido_hasta_entry.grid(row=0, column=3, sticky=tk.W, pady=5, padx=(10, 0))
             ttk.Label(header_frame, text="(DD/MM/AAAA)", font=("Arial", 7)).grid(row=0, column=4, sticky=tk.W, pady=5, padx=(5, 0))
             print(f"✅ Campo de fecha configurado: {fecha_default}")
 
         # Fila 1: IVA y Estado
         ttk.Label(header_frame, text="% IVA:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        iva_entry = ttk.Entry(header_frame, textvariable=self.iva_var, width=10)
+        iva_entry = ttk.Entry(header_frame, textvariable=self.iva_var, width=10,
+                            state="readonly" if self.solo_lectura else "normal")
         iva_entry.grid(row=1, column=1, sticky=tk.W, pady=5, padx=(10, 0))
         print(f"💰 Campo IVA configurado: {self.iva_var.get()}%")
         
         if not self.es_nuevo:
             ttk.Label(header_frame, text="Estado:").grid(row=1, column=2, sticky=tk.W, pady=5, padx=(20, 0))
-            estado_combo = ttk.Combobox(header_frame, textvariable=self.estado_var, width=15, state="readonly")
-            estado_combo['values'] = ['borrador', 'enviado', 'aceptado', 'rechazado']
+            estado_combo = ttk.Combobox(header_frame, textvariable=self.estado_var, width=15, 
+                                      state="readonly" if not self.solo_lectura else "disabled")
+            
+            # 🔥 AGREGAR ESTADO "ANULADO" AL COMBOBOX
+            if self.es_anulado:
+                estado_combo['values'] = ['anulado']
+            else:
+                estado_combo['values'] = ['borrador', 'enviado', 'aceptado', 'rechazado', 'anulado']
+                
             estado_combo.grid(row=1, column=3, sticky=tk.W, pady=5, padx=(10, 0))
             print("✅ Selector de estado configurado")
     
@@ -424,6 +463,11 @@ class FormularioPresupuesto:
             ttk.Button(items_toolbar, text="🗑️ Eliminar Ítem",
                     command=self.eliminar_item).pack(side=tk.LEFT, padx=5)
             print("✅ Botones de items configurados")
+        else:
+            # 🔥 MOSTRAR INDICADOR DE SOLO LECTURA PARA ANULADOS
+            if self.es_anulado:
+                ttk.Label(items_toolbar, text="📋 PRESUPUESTO ANULADO - SOLO LECTURA", 
+                         foreground="red", font=("Arial", 9, "bold")).pack(side=tk.LEFT)
     
         # Treeview para items
         columns = ('codigo', 'descripcion', 'cantidad', 'precio', 'subtotal')
@@ -458,13 +502,15 @@ class FormularioPresupuesto:
         # Observaciones
         obs_frame = ttk.LabelFrame(notes_frame, text="📝 Observaciones", padding="5")
         obs_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
-        self.observaciones_text = tk.Text(obs_frame, width=40, height=4)
+        self.observaciones_text = tk.Text(obs_frame, width=40, height=4,
+                                        state="normal" if not self.solo_lectura else "disabled")
         self.observaciones_text.pack(fill=tk.BOTH, expand=True)
     
         # Condiciones comerciales
         cond_frame = ttk.LabelFrame(notes_frame, text="📄 Condiciones Comerciales", padding="5")
         cond_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(5, 0))
-        self.condiciones_text = tk.Text(cond_frame, width=40, height=4)
+        self.condiciones_text = tk.Text(cond_frame, width=40, height=4,
+                                      state="normal" if not self.solo_lectura else "disabled")
         self.condiciones_text.pack(fill=tk.BOTH, expand=True)
         print("✅ Campos de texto configurados")
     
@@ -492,6 +538,14 @@ class FormularioPresupuesto:
         if self.solo_lectura:
             ttk.Button(button_frame, text="⬅️ Volver",
                     command=self.window.destroy).pack(side=tk.LEFT, padx=5)
+            
+            # 🔥 BOTÓN ESPECIAL PARA PRESUPUESTOS ANULADOS
+            if self.es_anulado:
+                # Mostrar información de anulación si está disponible
+                if self.presupuesto_data.get('fecha_anulacion') or self.presupuesto_data.get('motivo_anulacion'):
+                    ttk.Button(button_frame, text="📋 Ver Detalles de Anulación",
+                            command=self.mostrar_detalles_anulacion).pack(side=tk.LEFT, padx=5)
+            
             print("✅ Modo solo lectura - Botón volver configurado")
         else:
             ttk.Button(button_frame, text="💾 Guardar Presupuesto",
@@ -506,12 +560,55 @@ class FormularioPresupuesto:
         notes_frame.columnconfigure(0, weight=1)
         notes_frame.columnconfigure(1, weight=1)
         
+        # 🔥 CONFIGURAR ESTILOS PARA ANULADOS
+        self.configurar_estilos()
+        
         print("🎉 INTERFAZ GRÁFICA CREADA EXITOSAMENTE")
+
+    def configurar_estilos(self):
+        """Configurar estilos visuales para presupuestos anulados"""
+        style = ttk.Style()
+        
+        # Estilo para label frame de anulados
+        style.configure('Anulado.TLabelframe', 
+                       background='#f8f9fa',
+                       bordercolor='#95a5a6')
+        style.configure('Anulado.TLabelframe.Label', 
+                       foreground='#d63031',
+                       background='#f8f9fa',
+                       font=('Arial', 10, 'bold'))
+
+    def mostrar_detalles_anulacion(self):
+        """Mostrar detalles de la anulación del presupuesto"""
+        detalles = []
+        
+        if self.presupuesto_data.get('fecha_anulacion'):
+            fecha_anulacion = self.presupuesto_data['fecha_anulacion']
+            detalles.append(f"🗓️ Fecha de anulación: {fecha_anulacion}")
+        
+        if self.presupuesto_data.get('motivo_anulacion'):
+            motivo = self.presupuesto_data['motivo_anulacion']
+            detalles.append(f"📝 Motivo: {motivo}")
+        
+        if self.presupuesto_data.get('anulado_por'):
+            # Aquí podrías obtener el nombre del usuario que anuló
+            detalles.append(f"👤 Anulado por: Usuario ID {self.presupuesto_data['anulado_por']}")
+        
+        if detalles:
+            messagebox.showinfo("📋 Detalles de Anulación", "\n\n".join(detalles))
+        else:
+            messagebox.showinfo("📋 Detalles de Anulación", 
+                              "No hay información adicional disponible sobre la anulación.")
 
     def agregar_producto(self):
         """Abrir diálogo para agregar producto"""
         if not self.cliente_var.get():
             messagebox.showwarning("Advertencia", "Primero seleccione un cliente")
+            return
+        
+        # 🔥 VERIFICAR SI ESTÁ ANULADO
+        if self.es_anulado:
+            messagebox.showinfo("Presupuesto Anulado", "No se pueden modificar items de un presupuesto anulado.")
             return
        
         print("🛍️ Abriendo diálogo para agregar producto...")
@@ -538,6 +635,11 @@ class FormularioPresupuesto:
         if not self.cliente_var.get():
             messagebox.showwarning("Advertencia", "Primero seleccione un cliente")
             return
+        
+        # 🔥 VERIFICAR SI ESTÁ ANULADO
+        if self.es_anulado:
+            messagebox.showinfo("Presupuesto Anulado", "No se pueden modificar items de un presupuesto anulado.")
+            return
        
         print("🔧 Abriendo diálogo para agregar servicio...")
         dialogo = DialogoSeleccionServicio(self.window, self.servicios)
@@ -560,6 +662,11 @@ class FormularioPresupuesto:
 
     def eliminar_item(self):
         """Eliminar ítem seleccionado"""
+        # 🔥 VERIFICAR SI ESTÁ ANULADO
+        if self.es_anulado:
+            messagebox.showinfo("Presupuesto Anulado", "No se pueden eliminar items de un presupuesto anulado.")
+            return
+            
         selection = self.tree_items.selection()
         if not selection:
             messagebox.showwarning("Advertencia", "Seleccione un ítem para eliminar")
@@ -574,6 +681,11 @@ class FormularioPresupuesto:
 
     def editar_item(self, event):
         """Editar ítem seleccionado (cambiar cantidad o precio unitario)"""
+        # 🔥 VERIFICAR SI ESTÁ ANULADO
+        if self.es_anulado:
+            messagebox.showinfo("Presupuesto Anulado", "No se pueden editar items de un presupuesto anulado.")
+            return
+            
         selection = self.tree_items.selection()
         if not selection:
             return
@@ -900,6 +1012,13 @@ class FormularioPresupuesto:
 
     def gestionar_adjuntos(self):
         """Abrir gestión de adjuntos desde el formulario"""
+        # 🔥 VERIFICAR SI ESTÁ ANULADO
+        if self.es_anulado:
+            messagebox.showinfo("Presupuesto Anulado", 
+                              "No se pueden gestionar adjuntos de un presupuesto anulado.\n\n"
+                              "Los presupuestos anulados son de solo lectura para auditoría.")
+            return
+            
         from dialogo_adjunto import DialogoAdjunto
         presupuesto_id = self.presupuesto_data['id'] if self.presupuesto_data else None
         if presupuesto_id:
@@ -910,6 +1029,13 @@ class FormularioPresupuesto:
 
     def guardar(self):
         """Guardar presupuesto - VERSIÓN CORREGIDA CON IDs PRESERVADOS"""
+        # 🔥 VERIFICAR SI ESTÁ ANULADO
+        if self.es_anulado:
+            messagebox.showinfo("Presupuesto Anulado", 
+                              "No se puede guardar un presupuesto anulado.\n\n"
+                              "Los presupuestos anulados son de solo lectura para auditoría.")
+            return
+            
         print("💾 Iniciando proceso de guardado...")
         
         if not self.validar_formulario():

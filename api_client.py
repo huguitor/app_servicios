@@ -21,11 +21,16 @@ class Endpoints:
     CATEGORIAS = "/categorias/"
     MARCAS = "/marcas/"
     COMPROBANTES = "/comprobantes/"
-    
+   
     # Adjuntos
     ADJUNTOS_TIPOS = "/presupuestos/adjuntos/tipos/"
     ADJUNTOS_PRESUPUESTO = "/presupuestos/{}/adjuntos/"
     ADJUNTOS_ELIMINAR = "/presupuestos/{}/adjuntos/{}/"
+   
+    # 👇 NUEVOS ENDPOINTS PARA ANULACIÓN
+    PRESUPUESTOS_ANULAR = "/presupuestos/{}/anular/"
+    PRESUPUESTOS_ANULADOS = "/presupuestos/presupuestos_anulados/"
+
 
 class APIClient:
     def __init__(self):
@@ -140,6 +145,7 @@ class APIClient:
             else:
                 response = self.session.post(url, json=data, timeout=Config.API_TIMEOUT)
 
+
             return self._handle_response(response)
         except Exception as e:
             return None, f"Error de conexión: {str(e)}"
@@ -194,8 +200,9 @@ class APIClient:
             except:
                 return None, f"Error {response.status_code}: {response.text}"
 
+
     # 👇 MÉTODOS NUEVOS PARA ADJUNTOS
-    
+   
     def get_adjuntos_presupuesto(self, presupuesto_id):
         """Obtener todos los adjuntos de un presupuesto"""
         try:
@@ -204,7 +211,7 @@ class APIClient:
             return self._handle_response(response)
         except Exception as e:
             return None, f"Error de conexión: {str(e)}"
-    
+   
     def get_tipos_adjunto(self):
         """Obtener los tipos de adjuntos disponibles"""
         try:
@@ -213,16 +220,16 @@ class APIClient:
             return self._handle_response(response)
         except Exception as e:
             return None, f"Error de conexión: {str(e)}"
-    
+   
     def subir_adjunto(self, presupuesto_id, archivo_path, tipo, descripcion=""):
         """Subir un archivo adjunto a un presupuesto"""
         try:
             url = Config.get_api_url(Endpoints.ADJUNTOS_PRESUPUESTO.format(presupuesto_id))
-            
+           
             # Verificar que el archivo existe
             if not os.path.exists(archivo_path):
                 return None, f"El archivo no existe: {archivo_path}"
-            
+           
             with open(archivo_path, 'rb') as archivo:
                 files = {'archivo': (os.path.basename(archivo_path), archivo)}
                 data = {
@@ -230,20 +237,20 @@ class APIClient:
                     'tipo': tipo,
                     'descripcion': descripcion
                 }
-                
+               
                 print(f"📤 Datos a enviar para adjunto:")
                 print(f"   Presupuesto ID: {presupuesto_id}")
                 print(f"   Tipo: {tipo}")
                 print(f"   Descripción: {descripcion}")
                 print(f"   Archivo: {os.path.basename(archivo_path)}")
-                
+               
                 response = self.session.post(url, files=files, data=data, timeout=Config.API_TIMEOUT)
-            
+           
             return self._handle_response(response)
-            
+           
         except Exception as e:
             return None, f"Error subiendo archivo: {str(e)}"
-    
+   
     def eliminar_adjunto(self, presupuesto_id, adjunto_id):
         """Eliminar un adjunto - VERSIÓN CORREGIDA"""
         try:
@@ -251,9 +258,48 @@ class APIClient:
             url = Config.get_api_url(Endpoints.ADJUNTOS_ELIMINAR.format(presupuesto_id, adjunto_id))
             print(f"🗑️ Eliminando adjunto {adjunto_id} del presupuesto {presupuesto_id}")
             print(f"🔧 URL: {url}")
-            
+           
             response = self.session.delete(url, timeout=Config.API_TIMEOUT)
             return self._handle_response(response)
+           
+        except Exception as e:
+            return None, f"Error de conexión: {str(e)}"
+
+
+    # 👇 NUEVOS MÉTODOS PARA ANULACIÓN DE PRESUPUESTOS
+   
+    def anular_presupuesto(self, presupuesto_id, motivo=""):
+        """Anular un presupuesto"""
+        try:
+            endpoint = Endpoints.PRESUPUESTOS_ANULAR.format(presupuesto_id)
+            url = Config.get_api_url(endpoint)
+            data = {'motivo': motivo}
             
+            print(f"🔧 Anulando presupuesto ID: {presupuesto_id}")
+            print(f"📝 Motivo: {motivo}")
+            print(f"🔗 URL: {url}")
+            
+            response = self.session.post(
+                url,
+                json=data,
+                timeout=Config.API_TIMEOUT
+            )
+            return self._handle_response(response)
+        except Exception as e:
+            return None, f"Error de conexión: {str(e)}"
+    
+    def obtener_presupuestos_anulados(self):
+        """Obtener lista de presupuestos anulados"""
+        try:
+            url = Config.get_api_url(Endpoints.PRESUPUESTOS_ANULADOS)
+            
+            print(f"🔧 Obteniendo presupuestos anulados...")
+            print(f"🔗 URL: {url}")
+            
+            response = self.session.get(
+                url,
+                timeout=Config.API_TIMEOUT
+            )
+            return self._handle_response(response)
         except Exception as e:
             return None, f"Error de conexión: {str(e)}"

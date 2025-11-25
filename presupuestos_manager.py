@@ -4,6 +4,7 @@ from tkinter import messagebox
 import json
 import os  # 👈 AGREGAR ESTA IMPORTACIÓN
 
+
 class PresupuestosManager:
     def __init__(self):
         self.client = APIClient()
@@ -49,12 +50,12 @@ class PresupuestosManager:
         print("🔧 DEBUG MANAGER - ACTUALIZAR PRESUPUESTO")
         print(f"Presupuesto ID: {presupuesto_id}")
         print(f"Datos completos: {json.dumps(datos_presupuesto, indent=2, default=str)}")
-        
+       
         # Verificar específicamente el campo estado
         estado = datos_presupuesto.get('estado')
         print(f"🔧 Campo 'estado' en datos: {estado}")
         print(f"🔧 Tipo de estado: {type(estado)}")
-        
+       
         # Asegurar que los items tengan el formato correcto
         if 'items' in datos_presupuesto:
             for item in datos_presupuesto['items']:
@@ -64,17 +65,18 @@ class PresupuestosManager:
                 if item.get('servicio'):
                     item['servicio'] = int(item['servicio'])
 
+
         # USAR PATCH en lugar de PUT para actualización parcial
         endpoint = f"{Endpoints.PRESUPUESTOS}{presupuesto_id}/"
         print(f"🔧 Endpoint: {endpoint}")
-        
+       
         data, error = self.client.patch(endpoint, datos_presupuesto)
-        
+       
         if error:
             print(f"❌ ERROR en actualización: {error}")
             messagebox.showerror("Error", f"No se pudo actualizar el presupuesto: {error}")
             return None
-            
+           
         print("✅ Presupuesto actualizado correctamente")
         messagebox.showinfo("Éxito", "Presupuesto actualizado correctamente")
         return data
@@ -108,10 +110,11 @@ class PresupuestosManager:
         if not items or len(items) == 0:
             return False, "El presupuesto debe tener al menos un ítem"
         return True, ""
-    
+   
+
 
     # 👇 MÉTODOS NUEVOS PARA ADJUNTOS
-    
+   
     def obtener_adjuntos(self, presupuesto_id):
         """Obtener adjuntos de un presupuesto"""
         try:
@@ -123,7 +126,7 @@ class PresupuestosManager:
         except Exception as e:
             print(f"Error obteniendo adjuntos: {e}")
             return []
-    
+   
     def agregar_adjunto(self, presupuesto_id, archivo_path, tipo, descripcion=""):
         """Agregar un adjunto a un presupuesto con mejor manejo de errores"""
         try:
@@ -131,33 +134,34 @@ class PresupuestosManager:
             print(f"📋 Presupuesto ID: {presupuesto_id}")
             print(f"🔧 Tipo: {tipo}")
             print(f"📝 Descripción: {descripcion}")
-            
+           
             # Verificar que el archivo existe
             if not os.path.exists(archivo_path):
                 raise Exception(f"El archivo no existe: {archivo_path}")
-            
+           
             # Verificar tamaño del archivo (límite de 10MB)
             file_size = os.path.getsize(archivo_path) / (1024 * 1024)  # MB
             if file_size > 10:
                 raise Exception(f"El archivo es demasiado grande: {file_size:.1f}MB (máximo 10MB)")
-            
+           
             data, error = self.client.subir_adjunto(presupuesto_id, archivo_path, tipo, descripcion)
-            
+           
             if error:
                 raise Exception(f"Error del servidor: {error}")
-            
+           
             print(f"✅ Archivo subido exitosamente: {data.get('nombre_original', 'N/A')}")
             return data
-            
+           
         except Exception as e:
             print(f"❌ Error subiendo adjunto: {e}")
             raise Exception(f"No se pudo subir el archivo: {str(e)}")
+
 
     def obtener_tipos_adjunto(self):
         """Obtener tipos de adjuntos disponibles con mejor manejo de errores"""
         try:
             data, error = self.client.get_tipos_adjunto()
-            
+           
             if error:
                 print(f"⚠️ No se pudieron obtener tipos desde API: {error}")
                 # Retornar valores por defecto bien formateados
@@ -169,7 +173,7 @@ class PresupuestosManager:
                     {'codigo': 'imagen', 'label': '🖼️ Imagen'},
                     {'codigo': 'otro', 'label': '📎 Otro'}
                 ]
-            
+           
             # Verificar que los datos tengan el formato esperado
             if not data or not isinstance(data, list):
                 print("⚠️ Datos de tipos vacíos o formato incorrecto")
@@ -181,10 +185,10 @@ class PresupuestosManager:
                     {'codigo': 'imagen', 'label': '🖼️ Imagen'},
                     {'codigo': 'otro', 'label': '📎 Otro'}
                 ]
-                
+               
             print(f"✅ Tipos obtenidos de API: {len(data)} tipos")
             return data
-            
+           
         except Exception as e:
             print(f"❌ Error crítico obteniendo tipos: {e}")
             return [
@@ -196,24 +200,25 @@ class PresupuestosManager:
                 {'codigo': 'otro', 'label': '📎 Otro'}
             ]
 
+
     def eliminar_adjunto(self, adjunto_id, presupuesto_id):
         """Eliminar un adjunto - VERSIÓN CORREGIDA"""
         try:
             print(f"🗑️ Manager: Eliminando adjunto ID: {adjunto_id} del presupuesto: {presupuesto_id}")
-            
+           
             # 👇 PASAR AMBOS PARÁMETROS
             data, error = self.client.eliminar_adjunto(presupuesto_id, adjunto_id)
-            
+           
             if error:
                 raise Exception(f"No se pudo eliminar el adjunto: {error}")
-            
+           
             print(f"✅ Adjunto {adjunto_id} eliminado correctamente")
             return True
-            
+           
         except Exception as e:
             print(f"❌ Error eliminando adjunto: {e}")
             raise
-    
+   
     def get_estadisticas_adjuntos(self, presupuesto_id):
         """Obtener estadísticas de adjuntos"""
         try:
@@ -223,15 +228,72 @@ class PresupuestosManager:
                 'por_tipo': {},
                 'tamaño_total': 0
             }
-            
+           
             for adjunto in adjuntos:
                 tipo = adjunto['tipo']
                 if tipo not in estadisticas['por_tipo']:
                     estadisticas['por_tipo'][tipo] = 0
                 estadisticas['por_tipo'][tipo] += 1
                 estadisticas['tamaño_total'] += adjunto.get('tamaño', 0)
-            
+           
             return estadisticas
         except Exception as e:
             print(f"Error calculando estadísticas: {e}")
             return {'total': 0, 'por_tipo': {}, 'tamaño_total': 0}
+
+
+    # 👇 NUEVOS MÉTODOS PARA ANULACIÓN DE PRESUPUESTOS
+   
+    def anular_presupuesto(self, presupuesto_id, motivo=""):
+        """Anular un presupuesto"""
+        try:
+            print(f"🔧 Anulando presupuesto ID: {presupuesto_id}")
+            print(f"📝 Motivo: {motivo}")
+            
+            data, error = self.client.anular_presupuesto(presupuesto_id, motivo)
+            
+            if error:
+                raise Exception(f"No se pudo anular el presupuesto: {error}")
+            
+            print("✅ Presupuesto anulado correctamente")
+            return data
+            
+        except Exception as e:
+            print(f"❌ Error anulando presupuesto: {e}")
+            raise
+    
+    def obtener_presupuestos_anulados(self):
+        """Obtener lista de presupuestos anulados"""
+        try:
+            data, error = self.client.obtener_presupuestos_anulados()
+            
+            if error:
+                print(f"Error obteniendo presupuestos anulados: {error}")
+                return []
+            
+            return data if data else []
+            
+        except Exception as e:
+            print(f"Error obteniendo presupuestos anulados: {e}")
+            return []
+    
+    def puede_anular_presupuesto(self, presupuesto_data):
+        """Verificar si un presupuesto puede ser anulado"""
+        try:
+            estado_actual = presupuesto_data.get('estado', 'borrador')
+            
+            # Solo se pueden anular presupuestos en estado borrador o enviado
+            estados_anulables = ['borrador', 'enviado']
+            
+            if estado_actual not in estados_anulables:
+                return False, f"No se puede anular un presupuesto en estado '{estado_actual.upper()}'"
+            
+            # Verificar que no esté ya anulado
+            if estado_actual == 'anulado':
+                return False, "El presupuesto ya está anulado"
+            
+            return True, "Puede ser anulado"
+            
+        except Exception as e:
+            print(f"Error verificando si se puede anular: {e}")
+            return False, f"Error al verificar: {str(e)}"

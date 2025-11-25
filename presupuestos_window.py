@@ -9,14 +9,8 @@ import os
 from PIL import Image, ImageTk
 from presupuestos_formulario import FormularioPresupuesto
 from pdf_generator import generar_presupuesto_pdf
-from dialogo_adjunto import DialogoAdjunto  # 👈 IMPORT CORRECTO
-
-
-
-
-
-
-
+from dialogo_adjunto import DialogoAdjunto
+from dialogo_anular_presupuesto import DialogoAnularPresupuesto
 
 class PresupuestosWindow:
     def __init__(self, parent):
@@ -63,9 +57,6 @@ class PresupuestosWindow:
         self.cargar_datos_combobox()
         self.cargar_presupuestos()
 
-
-
-
     def set_icon(self):
         """Configurar el icono en ventanas hijas"""
         icon_paths = [
@@ -91,18 +82,12 @@ class PresupuestosWindow:
                 except:
                     continue
 
-
-
-
     def center_window(self, width, height):
         screen_width = self.window.winfo_screenwidth()
         screen_height = self.window.winfo_screenheight()
         x = (screen_width - width) // 2
         y = (screen_height - height) // 2
         self.window.geometry(f"{width}x{height}+{x}+{y}")
-
-
-
 
     def cargar_datos_combobox(self):
         """Cargar datos para los combobox de filtros"""
@@ -121,9 +106,6 @@ class PresupuestosWindow:
             self.clientes = []
             self.productos = []
             self.servicios = []
-
-
-
 
     def create_widgets(self):
         # Frame principal
@@ -155,10 +137,11 @@ class PresupuestosWindow:
         self.estado_filter = ttk.Combobox(
             search_frame,
             textvariable=self.estado_filter_var,
-            values=["Todos", "Borrador", "Enviado", "Aceptado", "Rechazado"],
+            values=["Todos", "Borrador", "Enviado", "Aceptado", "Rechazado", "Anulado"],
             state="readonly",
             width=12
         )
+        self.estado_filter.set("Todos")
         self.estado_filter.pack(side=tk.LEFT, padx=(0, 10))
         self.estado_filter.bind('<<ComboboxSelected>>', self.aplicar_filtros)
        
@@ -167,17 +150,21 @@ class PresupuestosWindow:
         button_frame.pack(side=tk.RIGHT)
        
         ttk.Button(button_frame, text="➕ Nuevo Presupuesto",
-                  command=self.nuevo_presupuesto).pack(side=tk.LEFT, padx=5)
+                  command=self.nuevo_presupuesto).pack(side=tk.LEFT, padx=2)
         ttk.Button(button_frame, text="✏️ Editar",
-                  command=self.editar_presupuesto).pack(side=tk.LEFT, padx=5)
+                  command=self.editar_presupuesto).pack(side=tk.LEFT, padx=2)
         ttk.Button(button_frame, text="📎 Adjuntos",
-                  command=self.gestionar_adjuntos).pack(side=tk.LEFT, padx=2)  # 👈 NUEVO BOTÓN
+                  command=self.gestionar_adjuntos).pack(side=tk.LEFT, padx=2)
         ttk.Button(button_frame, text="🖨️ PDF",
                   command=self.generar_pdf).pack(side=tk.LEFT, padx=2)
+       
+        ttk.Button(button_frame, text="❌ Anular",
+                  command=self.anular_presupuesto).pack(side=tk.LEFT, padx=2)
+       
         ttk.Button(button_frame, text="🗑️ Eliminar",
-                  command=self.eliminar_presupuesto).pack(side=tk.LEFT, padx=5)
+                  command=self.eliminar_presupuesto).pack(side=tk.LEFT, padx=2)
         ttk.Button(button_frame, text="🔄 Recargar",
-                  command=self.cargar_presupuestos).pack(side=tk.LEFT, padx=5)
+                  command=self.cargar_presupuestos).pack(side=tk.LEFT, padx=2)
        
         # Treeview para lista de presupuestos
         tree_frame = ttk.Frame(main_frame)
@@ -212,87 +199,69 @@ class PresupuestosWindow:
         self.tree.bind('<<TreeviewSelect>>', self.seleccionar_presupuesto)
         self.tree.bind('<Double-1>', lambda e: self.ver_detalle())
 
-
-
-
     def ordenar_columnas(self, column):
         """Ordenar las columnas al hacer clic en el encabezado"""
-        # Si hacemos clic en la misma columna, invertir el orden
         if self.sort_column == column:
             self.sort_reverse = not self.sort_reverse
         else:
             self.sort_column = column
             self.sort_reverse = False
        
-        # Obtener todos los items del treeview
         items = [(self.tree.set(item, column), item) for item in self.tree.get_children('')]
        
-        # Determinar el tipo de datos para ordenar correctamente
         if column in ['subtotal', 'iva', 'total']:
-            # Ordenar como moneda (remover $ y convertir a float)
             items.sort(key=lambda x: float(x[0].replace('$', '').replace(',', '')), reverse=self.sort_reverse)
         elif column == 'numero':
-            # Ordenar como número
             items.sort(key=lambda x: int(x[0]) if x[0].isdigit() else 0, reverse=self.sort_reverse)
         elif column == 'fecha':
-            # Ordenar como fecha (formato YYYY-MM-DD)
             items.sort(key=lambda x: x[0], reverse=self.sort_reverse)
         elif column == 'id':
-            # Ordenar como número
             items.sort(key=lambda x: int(x[0]), reverse=self.sort_reverse)
         else:
-            # Ordenar como texto
             items.sort(key=lambda x: x[0].lower(), reverse=self.sort_reverse)
        
-        # Reorganizar items en el treeview
         for index, (_, item) in enumerate(items):
             self.tree.move(item, '', index)
        
-        # Actualizar indicadores visuales de ordenamiento
         self.actualizar_indicadores_ordenamiento()
-
-
-
 
     def actualizar_indicadores_ordenamiento(self):
         """Actualizar los indicadores visuales en los encabezados de columna"""
         for col in self.tree['columns']:
             current_text = self.tree.heading(col)['text']
-            # Remover indicadores anteriores
             if current_text.endswith(' ▲') or current_text.endswith(' ▼'):
                 current_text = current_text[:-2]
            
-            # Agregar nuevo indicador si es la columna ordenada
             if col == self.sort_column:
                 indicator = ' ▼' if self.sort_reverse else ' ▲'
                 self.tree.heading(col, text=current_text + indicator)
 
-
-
-
     def cargar_presupuestos(self, filtros=None):
-        """Cargar lista de presupuestos"""
+        """Cargar lista de presupuestos INCLUYENDO ANULADOS"""
         try:
+            # 🔥 AGREGAR SIEMPRE EL PARÁMETRO PARA INCLUIR ANULADOS
+            if filtros is None:
+                filtros = {}
+            
+            # Forzar a incluir anulados para que no desaparezcan
+            filtros['incluir_anulados'] = True
+            
             self.presupuestos = self.manager.obtener_presupuestos(filtros)
             self.actualizar_treeview()
             self.actualizar_filtros_combobox()
+            
+            print(f"📋 Presupuestos cargados: {len(self.presupuestos)} (incluyendo anulados)")
+            
         except Exception as e:
             print(f"Error cargando presupuestos: {e}")
             self.presupuestos = []
             self.actualizar_treeview()
 
-
-
-
     def actualizar_filtros_combobox(self):
         """Actualizar los combobox de filtros con datos actualizados"""
-        # Clientes
         clientes_nombres = ["Todos"] + [self.obtener_nombre_cliente(cliente_id) for cliente_id in
                                       list(set([p.get('cliente') for p in self.presupuestos if p.get('cliente')]))]
         self.cliente_filter['values'] = clientes_nombres
-
-
-
 
     def obtener_nombre_cliente(self, cliente_id):
         """Obtener nombre del cliente por ID"""
@@ -304,34 +273,37 @@ class PresupuestosWindow:
                     return cliente['nombre']
         return "Cliente no encontrado"
 
-
-
-
     def actualizar_treeview(self):
         """Actualizar el treeview con los presupuestos"""
-        # Limpiar treeview
         for item in self.tree.get_children():
             self.tree.delete(item)
    
-        # Llenar con datos
         for presupuesto in self.presupuestos:
             cliente_nombre = self.obtener_nombre_cliente(presupuesto.get('cliente'))
             fecha = presupuesto.get('fecha', '').split('T')[0] if presupuesto.get('fecha') else ''
            
-            # Formatear montos
             subtotal_str = f"${float(presupuesto.get('subtotal', 0)):.2f}" if presupuesto.get('subtotal') else '$0.00'
             iva_str = f"${float(presupuesto.get('iva_valor', 0)):.2f}" if presupuesto.get('iva_valor') else '$0.00'
             total_str = f"${float(presupuesto.get('total', 0)):.2f}" if presupuesto.get('total') else '$0.00'
            
-            # Mapear estado a español
             estado_map = {
                 'borrador': 'Borrador',
                 'enviado': 'Enviado',
                 'aceptado': 'Aceptado',
-                'rechazado': 'Rechazado'
+                'rechazado': 'Rechazado',
+                'anulado': 'ANULADO'
             }
             estado_display = estado_map.get(presupuesto.get('estado', 'borrador'), 'Borrador')
    
+            tags = ()
+            estado = presupuesto.get('estado')
+            if estado == 'anulado':
+                tags = ('anulado',)
+            elif estado == 'aceptado':
+                tags = ('aceptado',)
+            elif estado == 'rechazado':
+                tags = ('rechazado',)
+
             self.tree.insert('', tk.END, values=(
                 presupuesto['id'],
                 presupuesto.get('numero', ''),
@@ -341,14 +313,14 @@ class PresupuestosWindow:
                 iva_str,
                 total_str,
                 estado_display
-            ))
+            ), tags=tags)
        
-        # Restaurar ordenamiento si existe
+        self.tree.tag_configure('anulado', foreground='#95a5a6', background='#f8f9fa')
+        self.tree.tag_configure('aceptado', foreground='#27ae60')
+        self.tree.tag_configure('rechazado', foreground='#e74c3c')
+       
         if self.sort_column:
             self.ordenar_columnas(self.sort_column)
-
-
-
 
     def seleccionar_presupuesto(self, event):
         """Manejar selección de presupuesto"""
@@ -360,21 +332,18 @@ class PresupuestosWindow:
                 (p for p in self.presupuestos if p['id'] == presupuesto_id), None
             )
 
-
-
-
     def buscar_presupuestos(self, event=None):
         """Buscar presupuestos en tiempo real"""
         texto_busqueda = self.search_var.get().lower()
         if len(texto_busqueda) >= 2 or texto_busqueda == "":
             self.aplicar_filtros()
 
-
-
-
     def aplicar_filtros(self, event=None):
-        """Aplicar todos los filtros"""
+        """Aplicar todos los filtros INCLUYENDO ANULADOS"""
         filtros = {}
+       
+        # 🔥 SIEMPRE INCLUIR ANULADOS
+        filtros['incluir_anulados'] = True
        
         # Filtro de búsqueda
         texto_busqueda = self.search_var.get()
@@ -384,7 +353,6 @@ class PresupuestosWindow:
         # Filtro de cliente
         cliente_seleccionado = self.cliente_filter_var.get()
         if cliente_seleccionado != "Todos":
-            # Buscar ID del cliente por nombre
             for cliente in self.clientes:
                 nombre_cliente = f"{cliente['nombre']} {cliente['apellido'] or ''}".strip() if cliente['tipo'] == 'fisica' else cliente['nombre']
                 if nombre_cliente == cliente_seleccionado:
@@ -398,21 +366,17 @@ class PresupuestosWindow:
                 'Borrador': 'borrador',
                 'Enviado': 'enviado',
                 'Aceptado': 'aceptado',
-                'Rechazado': 'rechazado'
+                'Rechazado': 'rechazado',
+                'Anulado': 'anulado'
             }
             filtros['estado'] = estado_map_inverso.get(estado_seleccionado, 'borrador')
        
+        print(f"🔍 Aplicando filtros: {filtros}")
         self.cargar_presupuestos(filtros)
-
-
-
 
     def nuevo_presupuesto(self):
         """Abrir formulario para nuevo presupuesto"""
         FormularioPresupuesto(self.window, self, None)
-
-
-
 
     def editar_presupuesto(self):
         """Abrir formulario para editar presupuesto seleccionado"""
@@ -420,10 +384,15 @@ class PresupuestosWindow:
             messagebox.showwarning("Advertencia", "Por favor seleccione un presupuesto para editar")
             return
        
+        if self.presupuesto_seleccionado.get('estado') == 'anulado':
+            messagebox.showinfo(
+                "Presupuesto Anulado",
+                "No se puede editar un presupuesto anulado.\n\n"
+                "Los presupuestos anulados son de solo lectura para auditoría."
+            )
+            return
+       
         FormularioPresupuesto(self.window, self, self.presupuesto_seleccionado)
-
-
-
 
     def eliminar_presupuesto(self):
         """Eliminar presupuesto seleccionado"""
@@ -431,17 +400,25 @@ class PresupuestosWindow:
             messagebox.showwarning("Advertencia", "Por favor seleccione un presupuesto para eliminar")
             return
        
+        if self.presupuesto_seleccionado.get('estado') == 'anulado':
+            messagebox.showinfo(
+                "Presupuesto Anulado",
+                "No se puede eliminar un presupuesto anulado.\n\n"
+                "Los presupuestos anulados se conservan para auditoría."
+            )
+            return
+       
         confirmacion = messagebox.askyesno(
             "Confirmar eliminación",
-            f"¿Está seguro de que desea eliminar el presupuesto N° {self.presupuesto_seleccionado.get('numero', '')}?"
+            f"¿Está seguro de que desea eliminar el presupuesto N° {self.presupuesto_seleccionado.get('numero', '')}?\n\n"
+            f"👤 Cliente: {self.obtener_nombre_cliente(self.presupuesto_seleccionado.get('cliente'))}\n"
+            f"💰 Total: ${float(self.presupuesto_seleccionado.get('total', 0)):.2f}\n\n"
+            f"⚠️  Esta acción no se puede deshacer."
         )
        
         if confirmacion:
             if self.manager.eliminar_presupuesto(self.presupuesto_seleccionado['id']):
                 self.cargar_presupuestos()
-
-
-
 
     def generar_pdf(self):
         """Generar PDF del presupuesto seleccionado"""
@@ -450,7 +427,6 @@ class PresupuestosWindow:
             return
        
         try:
-            # Obtener datos del cliente
             cliente_id = self.presupuesto_seleccionado.get('cliente')
             cliente_data = None
             for cliente in self.clientes:
@@ -462,7 +438,6 @@ class PresupuestosWindow:
                 messagebox.showerror("Error", "No se pudo obtener información del cliente")
                 return
            
-            # Generar PDF
             pdf_path = generar_presupuesto_pdf(self.presupuesto_seleccionado, cliente_data)
            
             if pdf_path:
@@ -475,9 +450,6 @@ class PresupuestosWindow:
         except Exception as e:
             messagebox.showerror("Error", f"Error generando PDF: {e}")
 
-
-
-
     def ver_detalle(self):
         """Ver detalle del presupuesto seleccionado (solo lectura)"""
         if not self.presupuesto_seleccionado:
@@ -486,15 +458,55 @@ class PresupuestosWindow:
        
         FormularioPresupuesto(self.window, self, self.presupuesto_seleccionado, solo_lectura=True)
 
-
-
-
     def gestionar_adjuntos(self):
         """Abrir ventana de gestión de adjuntos"""
         if not self.presupuesto_seleccionado:
             messagebox.showwarning("Advertencia", "Seleccione un presupuesto")
             return
        
-        # 👈 USANDO IMPORT CORRECTO
+        if self.presupuesto_seleccionado.get('estado') == 'anulado':
+            messagebox.showinfo(
+                "Presupuesto Anulado",
+                "No se pueden gestionar adjuntos de un presupuesto anulado.\n\n"
+                "Los presupuestos anulados son de solo lectura para auditoría."
+            )
+            return
+       
         DialogoAdjunto(self.window, self.manager, self.presupuesto_seleccionado['id'])
 
+    def anular_presupuesto(self):
+        """Anular el presupuesto seleccionado"""
+        if not self.presupuesto_seleccionado:
+            messagebox.showwarning("Advertencia", "Por favor, seleccione un presupuesto para anular")
+            return
+        
+        if self.presupuesto_seleccionado.get('estado') == 'anulado':
+            messagebox.showinfo(
+                "Ya Anulado",
+                "Este presupuesto ya se encuentra anulado."
+            )
+            return
+        
+        estado_actual = self.presupuesto_seleccionado.get('estado')
+        if estado_actual in ['aceptado', 'rechazado']:
+            messagebox.showwarning(
+                "No Se Puede Anular",
+                f"No se puede anular un presupuesto que ya está {estado_actual.upper()}.\n\n"
+                "Solo se pueden anular presupuestos en estado BORRADOR o ENVIADO."
+            )
+            return
+        
+        dialogo = DialogoAnularPresupuesto(
+            self.window,
+            self.manager,
+            self.presupuesto_seleccionado['id'],
+            self.presupuesto_seleccionado
+        )
+        
+        self.window.wait_window(dialogo)
+        
+        if dialogo.resultado:
+            # 🔥 ACTUALIZAR LA LISTA INCLUYENDO ANULADOS
+            self.cargar_presupuestos({'incluir_anulados': True})
+            messagebox.showinfo("Éxito", "✅ Presupuesto anulado correctamente")
+            print("🔄 Lista actualizada - presupuestos anulados incluidos")
