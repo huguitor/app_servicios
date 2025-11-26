@@ -23,4 +23,10 @@ class Config:
     
     @classmethod
     def get_api_url(cls, endpoint):
+        """URL para endpoints que requieren autenticación"""
+        return f"{cls.API_BASE_URL}{endpoint}"
+    
+    @classmethod
+    def get_public_url(cls, endpoint):
+        """URL para endpoints públicos (como config_login)"""
         return f"{cls.API_BASE_URL}{endpoint}"
