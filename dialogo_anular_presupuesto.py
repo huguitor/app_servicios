@@ -1,3 +1,4 @@
+# /app_escritorio/dialogo_anular_presupuesto.py
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
 import tkinter.font as tkFont

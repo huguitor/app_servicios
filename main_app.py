@@ -1,3 +1,4 @@
+# /app_escritorio/main_app.py
 import tkinter as tk
 from tkinter import ttk, messagebox
 from auth_manager import AuthManager

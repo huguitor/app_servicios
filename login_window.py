@@ -14,7 +14,7 @@ class LoginWindow:
         
         # Crear ventana
         self.window = tk.Tk()
-        self.window.title("Lab Servicios - Sistema de Gestión")
+        self.window.title("Panozo - Sistema de Gestión")
         self.window.geometry("400x350")  # Un poco más alto para mejor presentación
         self.window.resizable(False, False)
         self.window.configure(bg=Styles.BG_SECONDARY)

@@ -1,3 +1,4 @@
+# /app_escritorio/categorias_manager.py
 from api_client import APIClient, Endpoints
 from tkinter import messagebox
 

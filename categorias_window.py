@@ -6,8 +6,6 @@ import os
 from PIL import Image, ImageTk
 
 
-
-
 class CategoriasWindow:
     def __init__(self, parent):
         self.parent = parent

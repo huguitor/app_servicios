@@ -1,3 +1,4 @@
+# /app_escritorio/impuestos_window.py
 import tkinter as tk
 from tkinter import ttk, messagebox
 from impuestos_manager import ImpuestosManager
