@@ -612,18 +612,31 @@ class FormularioServicio:
                                                    if not (imp['impuesto_id'] == impuesto_id and imp['tipo'] == tipo)]
 
     def crear_pestania_archivos(self, parent):
-        """Crear pestaña para gestión de archivos"""
+        """Crear pestaña para gestión de archivos - VERSIÓN MEJORADA CON PREVIEW"""
         main_frame = ttk.Frame(parent, padding="10")
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         # Frame para imagen
-        imagen_frame = ttk.LabelFrame(main_frame, text="🖼️ Imagen del Servicio", padding="10")
-        imagen_frame.pack(fill=tk.X, pady=5)
-
-        self.imagen_label = ttk.Label(imagen_frame, text="No se ha seleccionado imagen")
-        self.imagen_label.pack(pady=5)
-
-        ttk.Button(imagen_frame, text="Seleccionar Imagen", command=self.seleccionar_imagen).pack(pady=5)
+        self.imagen_frame = ttk.LabelFrame(main_frame, text="🖼️ Imagen del Servicio", padding="10")
+        self.imagen_frame.pack(fill=tk.BOTH, expand=True, pady=5)
+        
+        # Frame para preview de imagen
+        self.preview_frame_imagen = ttk.Frame(self.imagen_frame)
+        self.preview_frame_imagen.pack(fill=tk.BOTH, expand=True, pady=5)
+        
+        # Label para mostrar la imagen (inicialmente vacío)
+        self.imagen_preview_label = ttk.Label(self.preview_frame_imagen, text="No hay imagen seleccionada")
+        self.imagen_preview_label.pack(expand=True)
+        
+        # Frame para controles
+        controls_frame = ttk.Frame(self.imagen_frame)
+        controls_frame.pack(fill=tk.X, pady=5)
+        
+        self.imagen_label = ttk.Label(controls_frame, text="No se ha seleccionado imagen")
+        self.imagen_label.pack(side=tk.LEFT, padx=5)
+        
+        ttk.Button(controls_frame, text="Seleccionar Imagen", command=self.seleccionar_imagen).pack(side=tk.LEFT, padx=5)
+        ttk.Button(controls_frame, text="Eliminar Imagen", command=self.eliminar_imagen).pack(side=tk.LEFT, padx=5)
 
         # Frame para adjunto
         adjunto_frame = ttk.LabelFrame(main_frame, text="📄 Documento Adjunto", padding="10")
@@ -643,6 +656,171 @@ class FormularioServicio:
         if file_path:
             self.imagen_path = file_path
             self.imagen_label.config(text=os.path.basename(file_path))
+            self.mostrar_preview_imagen_local(file_path)
+
+    def cargar_imagen_existente(self):
+        """Cargar y mostrar la imagen existente del servicio - VERSIÓN CORREGIDA"""
+        try:
+            # ✅ Obtener la URL de la imagen
+            imagen_url = self.servicio_data.get('imagen_url')
+            
+            if not imagen_url:
+                # No hay imagen, mostrar estado por defecto
+                self.imagen_label.config(text="No hay imagen cargada")
+                self.limpiar_preview_imagen()
+                return
+                
+            print(f"DEBUG - Imagen URL del servicio: {imagen_url}")
+            
+            # ✅ Solo manejar URLs (lo que ahora devuelve el backend)
+            if isinstance(imagen_url, str) and (imagen_url.startswith('http') or imagen_url.startswith('/')):
+                self.cargar_imagen_desde_url(imagen_url)
+            else:
+                print(f"❌ Formato de URL no reconocido: {imagen_url}")
+                self.imagen_label.config(text="Formato de imagen no soportado")
+                self.limpiar_preview_imagen()
+                
+        except Exception as e:
+            print(f"❌ Error cargando imagen existente: {e}")
+            self.imagen_label.config(text="Error cargando imagen")
+            self.limpiar_preview_imagen()
+
+    def limpiar_preview_imagen(self):
+        """Limpiar el área de preview de imagen"""
+        # Si no existe el frame de preview, crearlo
+        if not hasattr(self, 'preview_frame_imagen'):
+            self.preview_frame_imagen = ttk.Frame(self.imagen_frame)
+            self.preview_frame_imagen.pack(fill=tk.BOTH, expand=True, pady=5)
+        
+        for widget in self.preview_frame_imagen.winfo_children():
+            widget.destroy()
+        
+        self.imagen_preview_label = ttk.Label(self.preview_frame_imagen, text="No hay imagen seleccionada")
+        self.imagen_preview_label.pack(expand=True)
+
+    def cargar_imagen_desde_url(self, url_imagen):
+        """Cargar imagen desde URL para servicios"""
+        try:
+            # Si es una URL relativa, construir la URL completa
+            if url_imagen.startswith('/'):
+                from config import Config
+                base_url = getattr(Config, 'BASE_URL', 'http://localhost:8000')
+                url_imagen = f"{base_url}{url_imagen}"
+            
+            print(f"DEBUG - Descargando imagen del servicio desde: {url_imagen}")
+            
+            # Descargar la imagen
+            import requests
+            from io import BytesIO
+            
+            # Usar la misma sesión que APIClient para mantener la autenticación
+            from api_client import APIClient
+            client = APIClient()
+            
+            response = client.session.get(url_imagen, timeout=10)
+            
+            if response.status_code == 200:
+                # Verificar que sea una imagen
+                content_type = response.headers.get('content-type', '')
+                if not content_type.startswith('image/'):
+                    print(f"❌ El contenido no es una imagen: {content_type}")
+                    self.imagen_label.config(text="Error: El archivo no es una imagen válida")
+                    self.limpiar_preview_imagen()
+                    return
+                
+                # Crear imagen desde los datos descargados
+                image_data = BytesIO(response.content)
+                self.mostrar_preview_imagen_desde_bytes(image_data, "Imagen del servicio")
+                self.imagen_label.config(text="Imagen cargada desde servidor")
+            else:
+                print(f"❌ Error HTTP {response.status_code} al descargar imagen")
+                self.imagen_label.config(text=f"Error cargando imagen (HTTP {response.status_code})")
+                self.limpiar_preview_imagen()
+                
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Error de conexión: {e}")
+            self.imagen_label.config(text="Error de conexión al cargar imagen")
+            self.limpiar_preview_imagen()
+        except Exception as e:
+            print(f"❌ Error inesperado: {e}")
+            self.imagen_label.config(text="Error cargando imagen")
+            self.limpiar_preview_imagen()
+
+    def mostrar_preview_imagen_desde_bytes(self, image_buffer, descripcion):
+        """Mostrar preview de imagen desde buffer para servicios"""
+        try:
+            # Limpiar preview anterior
+            self.limpiar_preview_imagen()
+            
+            # Cargar y mostrar imagen usando ImageHelper
+            from image_helper import ImageHelper
+            
+            # Crear PhotoImage desde los bytes
+            photo = ImageHelper.create_tkinter_photo_from_bytes(image_buffer, max_size=(300, 300))
+            
+            if photo:
+                self.imagen_preview_label = ttk.Label(self.preview_frame_imagen, image=photo)
+                self.imagen_preview_label.image = photo  # Mantener referencia
+                self.imagen_preview_label.pack(expand=True)
+                
+                info_label = ttk.Label(self.preview_frame_imagen,
+                                    text=f"{descripcion} | Tamaño: 300x300px",
+                                    font=("Arial", 8))
+                info_label.pack()
+                
+                print("✅ Preview de imagen del servicio cargado correctamente")
+            else:
+                error_label = ttk.Label(self.preview_frame_imagen,
+                                    text="❌ No se pudo cargar la imagen\nFormato no compatible",
+                                    justify=tk.CENTER)
+                error_label.pack(expand=True)
+                print("❌ No se pudo crear PhotoImage para servicio desde los bytes")
+                
+        except Exception as e:
+            print(f"❌ Error mostrando preview de imagen: {e}")
+            error_label = ttk.Label(self.preview_frame_imagen,
+                                text="❌ Error al cargar la imagen",
+                                justify=tk.CENTER)
+            error_label.pack(expand=True)
+
+    def eliminar_imagen(self):
+        """Eliminar imagen seleccionada"""
+        self.imagen_path = None
+        self.imagen_data = None
+        self.imagen_label.config(text="No se ha seleccionado imagen")
+        self.limpiar_preview_imagen()
+
+    def mostrar_preview_imagen_local(self, image_path):
+        """Mostrar preview de imagen local"""
+        try:
+            # Limpiar preview anterior
+            self.limpiar_preview_imagen()
+            
+            # Cargar y mostrar imagen usando ImageHelper
+            from image_helper import ImageHelper
+            photo = ImageHelper.create_tkinter_photo(image_path, max_size=(300, 300))
+            
+            if photo:
+                self.imagen_preview_label = ttk.Label(self.preview_frame_imagen, image=photo)
+                self.imagen_preview_label.image = photo  # Mantener referencia
+                self.imagen_preview_label.pack(expand=True)
+                
+                info_label = ttk.Label(self.preview_frame_imagen,
+                                    text=f"Imagen seleccionada | Tamaño: 300x300px",
+                                    font=("Arial", 8))
+                info_label.pack()
+            else:
+                error_label = ttk.Label(self.preview_frame_imagen,
+                                    text="❌ No se pudo cargar la imagen\nFormato no compatible",
+                                    justify=tk.CENTER)
+                error_label.pack(expand=True)
+                
+        except Exception as e:
+            print(f"❌ Error mostrando preview local: {e}")
+            error_label = ttk.Label(self.preview_frame_imagen,
+                                text="❌ Error al cargar la imagen",
+                                justify=tk.CENTER)
+            error_label.pack(expand=True)
 
     def seleccionar_adjunto(self):
         """Seleccionar archivo adjunto"""
@@ -659,6 +837,12 @@ class FormularioServicio:
         if not self.servicio_data:
             return
 
+        # DEBUG: Verificar campos de imagen
+        print("=== DEBUG - CAMPOS DE IMAGEN DEL SERVICIO ===")
+        print(f"imagen_url: {self.servicio_data.get('imagen_url')}")
+        print(f"imagen: {self.servicio_data.get('imagen')}")
+        print("=============================================")
+
         self.codigo_var.set(self.servicio_data.get('codigo_interno', ''))
         self.nombre_var.set(self.servicio_data.get('nombre', ''))
         self.descripcion_text.insert('1.0', self.servicio_data.get('descripcion', ''))
@@ -671,6 +855,9 @@ class FormularioServicio:
             categoria_nombre = self.obtener_nombre_por_id(self.categorias, self.servicio_data['categoria'])
             self.categoria_var.set(categoria_nombre)
 
+        # ✅ Cargar imagen existente
+        self.cargar_imagen_existente()
+
         # Cargar impuestos existentes
         if 'servicioimpuesto_set' in self.servicio_data:
             for impuesto in self.servicio_data['servicioimpuesto_set']:
@@ -681,7 +868,7 @@ class FormularioServicio:
                         'impuesto_id': impuesto_id,
                         'tipo': tipo
                     })
-            
+        
             # Actualizar treeview de impuestos
             self.marcar_impuestos_seleccionados()
 
@@ -732,7 +919,7 @@ class FormularioServicio:
         return True
 
     def guardar(self):
-        """Guardar servicio"""
+        """Guardar servicio - VERSIÓN ACTUALIZADA CON ARCHIVOS"""
         if not self.validar_formulario():
             return
 
@@ -749,7 +936,7 @@ class FormularioServicio:
         if codigo:
             datos['codigo_interno'] = codigo
         elif self.es_nuevo:
-            datos['codigo_interno'] = None  # Para nuevo servicio, None genera código automático
+            datos['codigo_interno'] = None
 
         descripcion = self.descripcion_text.get('1.0', tk.END).strip()
         if descripcion:
@@ -757,10 +944,10 @@ class FormularioServicio:
         else:
             datos['descripcion'] = ""
 
-        # Manejar categoría - solo si está seleccionada
+        # Manejar categoría
         if self.categoria_var.get():
             categoria_id = next((cat['id'] for cat in self.categorias
-                           if cat['nombre'] == self.categoria_var.get()), None)
+                        if cat['nombre'] == self.categoria_var.get()), None)
             if categoria_id:
                 datos['categoria'] = categoria_id
         else:
@@ -778,17 +965,49 @@ class FormularioServicio:
                     'tipo': imp_sel['tipo']
                 })
         elif not self.es_nuevo:
-            # Para actualización, mantener impuestos existentes si no hay cambios
             if 'servicioimpuesto_set' in self.servicio_data:
                 datos['servicioimpuesto_set'] = self.servicio_data['servicioimpuesto_set']
 
         print(f"DEBUG - Datos a enviar: {datos}")
 
+        # PREPARAR ARCHIVOS
+        files = {}
+        
+        # Procesar imagen
+        if self.imagen_path:
+            try:
+                files['imagen'] = (
+                    os.path.basename(self.imagen_path),
+                    open(self.imagen_path, 'rb'),
+                    'image/jpeg'
+                )
+            except Exception as e:
+                print(f"❌ Error cargando imagen: {e}")
+                messagebox.showerror("Error", f"No se pudo cargar la imagen: {e}")
+                return
+
+        # Procesar adjunto
+        if self.adjunto_path:
+            try:
+                files['adjunto'] = (
+                    os.path.basename(self.adjunto_path),
+                    open(self.adjunto_path, 'rb'),
+                    'application/octet-stream'
+                )
+            except Exception as e:
+                print(f"❌ Error cargando adjunto: {e}")
+                messagebox.showerror("Error", f"No se pudo cargar el adjunto: {e}")
+                return
+
         manager = ServiciosManager()
         if self.es_nuevo:
-            resultado = manager.crear_servicio(datos)
+            resultado = manager.crear_servicio(datos, files if files else None)
         else:
-            resultado = manager.actualizar_servicio(self.servicio_data['id'], datos)
+            resultado = manager.actualizar_servicio(self.servicio_data['id'], datos, files if files else None)
+
+        # Cerrar archivos después de enviarlos
+        for file_tuple in files.values():
+            file_tuple[1].close()
 
         if resultado:
             self.servicios_window.cargar_servicios()

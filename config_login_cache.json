@@ -1,9 +1,8 @@
 {
-  "timestamp": 1764125138.6586607,
+  "timestamp": 1764593593.6972923,
   "data": {
     "nombre_fantasia": "Empresa de Servicios",
     "descripcion_sistema": "Sistema de Gestión Comercial",
-    "logo_url": "/media/config/logos/logo_LAB_5rAPPRW.png",
-    "logo_absolute_url": "http://127.0.0.1:8000/media/config/logos/logo_LAB_5rAPPRW.png"
+    "logo_url": null
   }
 }

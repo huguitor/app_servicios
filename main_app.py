@@ -16,7 +16,6 @@ import os
 from PIL import Image, ImageTk
 import sys
 
-
 # Importar los managers para obtener datos reales
 from clientes_manager import ClientesManager
 from proveedores_manager import ProveedoresManager
@@ -25,10 +24,7 @@ from categorias_manager import CategoriasManager
 from marcas_manager import MarcasManager
 from productos_manager import ProductosManager
 from servicios_manager import ServiciosManager
-from presupuestos_manager import PresupuestosManager  # <-- AGREGAR ESTA IMPORTACIÓN
-
-
-
+from presupuestos_manager import PresupuestosManager
 
 class MainApp:
     def __init__(self):
@@ -43,7 +39,7 @@ class MainApp:
         self.marcas_manager = MarcasManager()
         self.productos_manager = ProductosManager()
         self.servicios_manager = ServiciosManager()
-        self.presupuestos_manager = PresupuestosManager()  # <-- AGREGAR ESTA LÍNEA
+        self.presupuestos_manager = PresupuestosManager()
        
         self.setup_window()
         self.set_icon()
@@ -52,7 +48,7 @@ class MainApp:
         self.create_main_frame()
    
     def setup_window(self):
-        self.window.title("Sistema de Gestión Comercial - Lab Servicios")
+        self.window.title("Sistema de Gestión Comercial")
        
         # OBTENER DIMENSIONES DE LA PANTALLA Y USAR TODO EL ANCHO
         screen_width = self.window.winfo_screenwidth()
@@ -191,22 +187,22 @@ class MainApp:
         try:
             # Obtener todos los presupuestos
             presupuestos = self.presupuestos_manager.obtener_presupuestos()
-            
+           
             # Contadores por estado
             total = len(presupuestos)
             borrador = 0
             enviado = 0
             aceptado = 0
             rechazado = 0
-            
+           
             # Calcular totales
             subtotal_total = 0
             iva_total = 0
             total_general = 0
-            
+           
             for presupuesto in presupuestos:
                 estado = presupuesto.get('estado', 'borrador')
-                
+               
                 if estado == 'borrador':
                     borrador += 1
                 elif estado == 'enviado':
@@ -215,15 +211,15 @@ class MainApp:
                     aceptado += 1
                 elif estado == 'rechazado':
                     rechazado += 1
-                
+               
                 # Acumular montos
                 subtotal_total += float(presupuesto.get('subtotal', 0))
                 iva_total += float(presupuesto.get('iva_valor', 0))
                 total_general += float(presupuesto.get('total', 0))
-            
+           
             # Calcular tasa de conversión
             tasa_conversion = (aceptado / total * 100) if total > 0 else 0
-            
+           
             return {
                 "total": total,
                 "borrador": borrador,
@@ -281,7 +277,7 @@ class MainApp:
                 "marcas": len(marcas_activas),
                 "productos": len(productos_activos),
                 "servicios": len(servicios_activos),
-                "presupuestos": presupuestos_stats  # <-- AGREGAR ESTADÍSTICAS DE PRESUPUESTOS
+                "presupuestos": presupuestos_stats
             }
         except Exception as e:
             print(f"❌ Error obteniendo estadísticas reales: {e}")
@@ -334,10 +330,12 @@ class MainApp:
         management_menu.add_separator()
         management_menu.add_command(label="💰 Presupuestos", command=self.show_presupuestos)
         menubar.add_cascade(label="📊 Gestión", menu=management_menu)
-        # 🔥 NUEVO: Menú Configuración
+        
+        # Menú Configuración
         config_menu = tk.Menu(menubar, tearoff=0)
         config_menu.add_command(label="⚙️ Configuración del Sistema", command=self.show_configuracion)
         menubar.add_cascade(label="🔧 Configuración", menu=config_menu)
+        
         # Menú Ventana
         window_menu = tk.Menu(menubar, tearoff=0)
         window_menu.add_command(label="📐 Tamaño Normal", command=self.normal_size)
@@ -361,63 +359,132 @@ class MainApp:
        
         # Mostrar dashboard por defecto
         self.show_dashboard()
-   
+
     def show_dashboard(self):
         self.clear_main_frame()
-       
+
         # Obtener estadísticas reales
         stats = self.get_real_stats()
         presupuestos_stats = stats["presupuestos"]
-       
-        # Frame de bienvenida
-        welcome_frame = ttk.Frame(self.main_frame)
-        welcome_frame.pack(expand=True, fill=tk.BOTH, pady=20)
-       
-        # Título principal
-        ttk.Label(welcome_frame, text="🔧 Lab Servicios - Sistema de Gestión",
-                 font=("Arial", 24, "bold"), foreground="#2c3e50").pack(pady=10)
-       
-        ttk.Label(welcome_frame, text="Bienvenido al sistema de gestión integral",
-                 font=("Arial", 14), foreground="#7f8c8d").pack(pady=5)
-       
+
+        # Frame principal con scroll para asegurar que todo sea visible
+        main_canvas = tk.Canvas(self.main_frame)
+        scrollbar = ttk.Scrollbar(self.main_frame, orient="vertical", command=main_canvas.yview)
+        scrollable_frame = ttk.Frame(main_canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: main_canvas.configure(scrollregion=main_canvas.bbox("all"))
+        )
+
+        # 🔥 CENTRAR USANDO CONTENEDOR INTERMEDIO
+        canvas_window = main_canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        main_canvas.configure(yscrollcommand=scrollbar.set)
+
+        # 🔥 Función para centrar el contenido dinámicamente
+        def update_scroll_position(event=None):
+            canvas_width = main_canvas.winfo_width()
+            frame_width = scrollable_frame.winfo_reqwidth()
+            
+            if canvas_width > frame_width and canvas_width > 1:
+                # Calcular padding para centrar
+                x_offset = (canvas_width - frame_width) // 2
+                main_canvas.coords(canvas_window, x_offset, 0)
+            else:
+                # Si el frame es más ancho que el canvas, alinear a la izquierda
+                main_canvas.coords(canvas_window, 0, 0)
+        
+        # Bind para actualizar cuando cambie el tamaño
+        main_canvas.bind("<Configure>", update_scroll_position)
+        scrollable_frame.bind("<Configure>", lambda e: update_scroll_position())
+        
+        # Llamar después de renderizar
+        main_canvas.after(100, update_scroll_position)
+
+        main_canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # 🔥 OBTENER CONFIGURACIÓN DEL LOGIN PARA TÍTULOS DINÁMICOS
+        from configuracion_manager import ConfiguracionManager
+        config_manager = ConfiguracionManager()
+        config_login = config_manager.obtener_config_login()
+        
+        # Usar configuración dinámica o valores por defecto
+        nombre_fantasia = config_login.get('nombre_fantasia', 'Servicios')
+        descripcion_sistema = config_login.get('descripcion_sistema', 'Sistema de Gestión Integral')
+        
+        # Título principal - CENTRADO Y DINÁMICO
+        ttk.Label(scrollable_frame, text=f"🔧 {nombre_fantasia}",
+                font=("Arial", 20, "bold"), foreground="#2c3e50").pack(pady=15)
+        
+        ttk.Label(scrollable_frame, text=descripcion_sistema,
+                font=("Arial", 12), foreground="#7f8c8d").pack(pady=5)
+
         # Separador
-        ttk.Separator(welcome_frame, orient='horizontal').pack(fill='x', pady=20, padx=50)
-       
+        ttk.Separator(scrollable_frame, orient='horizontal').pack(fill='x', pady=15, padx=30)
+
         # ========== SECCIÓN DE ESTADÍSTICAS GENERALES ==========
-        ttk.Label(welcome_frame, text="📊 Resumen General del Sistema",
-                 font=("Arial", 16, "bold"), foreground="#2c3e50").pack(pady=10)
-       
-        stats_frame = ttk.Frame(welcome_frame)
-        stats_frame.pack(pady=15)
-       
+        ttk.Label(scrollable_frame, text="📊 Resumen General del Sistema",
+                font=("Arial", 14, "bold"), foreground="#2c3e50").pack(pady=8)
+
+        stats_frame = ttk.Frame(scrollable_frame)
+        stats_frame.pack(pady=10, fill=tk.X)
+
         stats_data = [
-            ("👥 Clientes", str(stats["clientes"]), "#3498db"),
-            ("🏢 Proveedores", str(stats["proveedores"]), "#f39c12"),
-            ("💰 Impuestos", str(stats["impuestos"]), "#9b59b6"),
-            ("📑 Categorías", str(stats["categorias"]), "#e74c3c"),
-            ("🏷️ Marcas", str(stats["marcas"]), "#27ae60"),
-            ("📦 Productos", str(stats["productos"]), "#1abc9c"),
-            ("🔧 Servicios", str(stats["servicios"]), "#d35400")
+            ("👥 Clientes", str(stats["clientes"]), "#3498db", "clientes"),
+            ("🏢 Proveedores", str(stats["proveedores"]), "#f39c12", "proveedores"),
+            ("💰 Impuestos", str(stats["impuestos"]), "#9b59b6", "impuestos"),
+            ("📑 Categorías", str(stats["categorias"]), "#e74c3c", "categorias"),
+            ("🏷️ Marcas", str(stats["marcas"]), "#27ae60", "marcas"),
+            ("📦 Productos", str(stats["productos"]), "#1abc9c", "productos"),
+            ("🔧 Servicios", str(stats["servicios"]), "#d35400", "servicios")
         ]
-       
-        for i, (title, value, color) in enumerate(stats_data):
-            stat_frame = ttk.Frame(stats_frame)
-            stat_frame.grid(row=0, column=i, padx=8, sticky='nsew')
-           
-            ttk.Label(stat_frame, text=value, font=("Arial", 16, "bold"),
-                     foreground=color).pack()
-            ttk.Label(stat_frame, text=title, font=("Arial", 9),
-                     foreground="#7f8c8d").pack()
-       
+
+        # Crear grid de 4 columnas para estadísticas generales - TARJETAS MÁS PEQUEÑAS
+        for i, (title, value, color, command) in enumerate(stats_data):
+            row = i // 4
+            col = i % 4
+            
+            if col == 0:
+                row_frame = ttk.Frame(stats_frame)
+                row_frame.pack(fill=tk.X, pady=3)
+            
+            stat_card = self.create_stat_card(row_frame, title, value, color, command)
+            stat_card.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
+
         # ========== SECCIÓN DE PRESUPUESTOS ==========
-        ttk.Label(welcome_frame, text="💰 Gestión de Presupuestos",
-                 font=("Arial", 16, "bold"), foreground="#2c3e50").pack(pady=(30, 10))
-       
+        # Título clickable para presupuestos
+        presupuestos_title_frame = ttk.Frame(scrollable_frame)
+        presupuestos_title_frame.pack(pady=(20, 8), fill=tk.X)
+        
+        presupuestos_label = ttk.Label(
+            presupuestos_title_frame, 
+            text="💰 Gestión de Presupuestos",
+            font=("Arial", 14, "bold"), 
+            foreground="#2c3e50",
+            cursor="hand2"
+        )
+        presupuestos_label.pack()
+        
+        # Tooltip para el título
+        tooltip_label = ttk.Label(
+            presupuestos_title_frame,
+            text="💡 Haz click aquí para ir directamente a Presupuestos",
+            font=("Arial", 7),
+            foreground="#95a5a6"
+        )
+        tooltip_label.pack(pady=(1, 0))
+        
+        # Bind del evento click al título
+        presupuestos_label.bind("<Button-1>", lambda e: self.show_presupuestos())
+        presupuestos_label.bind("<Enter>", lambda e: presupuestos_label.configure(foreground="#2980b9"))
+        presupuestos_label.bind("<Leave>", lambda e: presupuestos_label.configure(foreground="#2c3e50"))
+
         # Frame principal para presupuestos
-        presupuestos_main_frame = ttk.Frame(welcome_frame)
-        presupuestos_main_frame.pack(pady=10, fill=tk.X)
-       
-        # Estadísticas detalladas de presupuestos
+        presupuestos_main_frame = ttk.Frame(scrollable_frame)
+        presupuestos_main_frame.pack(pady=8, fill=tk.X)
+
+        # 🔥 CORRECCIÓN: Estadísticas detalladas de presupuestos - 6 RECTÁNGULOS MÁS PEQUEÑOS
         presupuestos_stats_data = [
             ("📋 Total", str(presupuestos_stats["total"]), "#2c3e50", "Todos los presupuestos"),
             ("📝 Borrador", str(presupuestos_stats["borrador"]), "#f39c12", "Pendientes de envío"),
@@ -426,106 +493,187 @@ class MainApp:
             ("❌ Rechazados", str(presupuestos_stats["rechazado"]), "#e74c3c", "Rechazados por clientes"),
             ("📈 Conversión", f"{presupuestos_stats['tasa_conversion']}%", "#9b59b6", "Tasa de aceptación")
         ]
-       
-        # Crear 2 filas para las estadísticas de presupuestos
-        row1_frame = ttk.Frame(presupuestos_main_frame)
-        row1_frame.pack(pady=5)
-       
-        row2_frame = ttk.Frame(presupuestos_main_frame)
-        row2_frame.pack(pady=5)
-       
-        # Distribuir las tarjetas en 2 filas
-        for i, (title, value, color, tooltip) in enumerate(presupuestos_stats_data):
-            if i < 3:  # Primera fila
-                parent_frame = row1_frame
-            else:  # Segunda fila
-                parent_frame = row2_frame
-               
-            stat_card = ttk.Frame(parent_frame, relief="solid", borderwidth=1)
-            stat_card.pack(side=tk.LEFT, padx=8, pady=5, fill=tk.X, expand=True)
-            stat_card.configure(style="Card.TFrame")
-           
-            # Configurar estilo para la tarjeta
-            style = ttk.Style()
-            style.configure("Card.TFrame", background="white", relief="solid", borderwidth=1)
-           
-            # Contenido de la tarjeta
-            ttk.Label(stat_card, text=value, font=("Arial", 18, "bold"),
-                     foreground=color, background="white").pack(pady=(10, 2))
-            ttk.Label(stat_card, text=title, font=("Arial", 10),
-                     foreground="#7f8c8d", background="white").pack(pady=(0, 10))
-       
+
+        # 🔥 CORRECCIÓN: Crear 2 filas con 3 columnas cada una para los 6 recuadros MÁS PEQUEÑOS
+        for row_index in range(2):  # 2 filas
+            row_frame = ttk.Frame(presupuestos_main_frame)
+            row_frame.pack(fill=tk.X, pady=3)
+            
+            # 3 recuadros por fila
+            for col_index in range(3):
+                index = row_index * 3 + col_index
+                if index < len(presupuestos_stats_data):
+                    title, value, color, tooltip = presupuestos_stats_data[index]
+                    
+                    # Crear tarjeta MÁS PEQUEÑA para consistencia
+                    stat_card = self.create_presupuesto_stat_card(
+                        row_frame, 
+                        title, 
+                        value, 
+                        color, 
+                        "presupuestos",
+                        tooltip
+                    )
+                    stat_card.pack(side=tk.LEFT, padx=5, fill=tk.BOTH, expand=True)
+
         # ========== RESUMEN FINANCIERO ==========
         if presupuestos_stats["total_general"] > 0:
-            ttk.Label(welcome_frame, text="💵 Resumen Financiero",
-                     font=("Arial", 14, "bold"), foreground="#2c3e50").pack(pady=(20, 10))
-           
-            financiero_frame = ttk.Frame(welcome_frame)
-            financiero_frame.pack(pady=10)
-           
+            ttk.Label(scrollable_frame, text="💵 Resumen Financiero",
+                    font=("Arial", 12, "bold"), foreground="#2c3e50").pack(pady=(15, 8))
+        
+            financiero_frame = ttk.Frame(scrollable_frame)
+            financiero_frame.pack(pady=8, fill=tk.X)
+        
             financiero_data = [
                 ("Subtotal", f"${presupuestos_stats['subtotal_total']:,.2f}", "#34495e"),
                 ("IVA", f"${presupuestos_stats['iva_total']:,.2f}", "#7f8c8d"),
                 ("Total General", f"${presupuestos_stats['total_general']:,.2f}", "#27ae60")
             ]
-           
+        
             for i, (title, value, color) in enumerate(financiero_data):
-                fin_frame = ttk.Frame(financiero_frame)
-                fin_frame.grid(row=0, column=i, padx=15, sticky='nsew')
-               
-                ttk.Label(fin_frame, text=value, font=("Arial", 12, "bold"),
-                         foreground=color).pack()
-                ttk.Label(fin_frame, text=title, font=("Arial", 9),
-                         foreground="#7f8c8d").pack()
-       
-        # ========== ACCIONES RÁPIDAS ==========
-        ttk.Label(welcome_frame, text="🚀 Acciones Rápidas",
-                 font=("Arial", 16, "bold"), foreground="#2c3e50").pack(pady=(30, 10))
-       
-        actions_frame = ttk.Frame(welcome_frame)
-        actions_frame.pack(pady=20)
-       
-        # Primera fila de botones
-        action_buttons_row1 = [
-            ("👥 Gestión de Clientes", self.show_clientes, "#3498db"),
-            ("🏢 Gestión de Proveedores", self.show_proveedores, "#f39c12"),
-            ("💰 Gestión de Impuestos", self.show_impuestos, "#9b59b6"),
-            ("📑 Gestión de Categorías", self.show_categorias, "#e74c3c")
-        ]
-       
-        row1_frame = ttk.Frame(actions_frame)
-        row1_frame.pack(pady=5)
-       
-        for text, command, color in action_buttons_row1:
-            btn = ttk.Button(
-                row1_frame,
-                text=text,
-                command=command,
-                width=20
+                fin_card = self.create_stat_card(financiero_frame, title, value, color, "presupuestos")
+                fin_card.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
+
+        # Actualizar el scrollable frame
+        main_canvas.update_idletasks()
+        main_canvas.configure(scrollregion=main_canvas.bbox("all"))
+
+    def create_stat_card(self, parent, title, value, color, command=None):
+        """Crear una tarjeta de estadística MÁS PEQUEÑA y clickable"""
+        card_frame = ttk.Frame(parent, relief="solid", borderwidth=1)
+        card_frame.configure(style="Card.TFrame")
+        
+        # Configurar estilo para la tarjeta
+        style = ttk.Style()
+        style.configure("Card.TFrame", background="white", relief="solid", borderwidth=1)
+        
+        # Hacer la tarjeta clickable si tiene un comando
+        if command:
+            card_frame.configure(cursor="hand2")
+            card_frame.bind("<Button-1>", lambda e, cmd=command: self.execute_command(cmd))
+            # Efecto hover
+            card_frame.bind("<Enter>", lambda e: card_frame.configure(style="CardHover.TFrame"))
+            card_frame.bind("<Leave>", lambda e: card_frame.configure(style="Card.TFrame"))
+            style.configure("CardHover.TFrame", background="#f8f9fa", relief="solid", borderwidth=2)
+        
+        # Frame interno para mejor control del contenido - MÁS PEQUEÑO
+        content_frame = ttk.Frame(card_frame, style="Card.TFrame")
+        content_frame.pack(expand=True, fill=tk.BOTH, padx=8, pady=8)
+        
+        # Contenido de la tarjeta - MÁS COMPACTO
+        value_label = ttk.Label(
+            content_frame, 
+            text=value, 
+            font=("Arial", 14, "bold"),  # 🔥 TEXTO MÁS PEQUEÑO
+            foreground=color, 
+            background="white",
+            wraplength=100
+        )
+        value_label.pack(pady=(2, 1))
+        
+        title_label = ttk.Label(
+            content_frame, 
+            text=title, 
+            font=("Arial", 8),  # 🔥 TEXTO MÁS PEQUEÑO
+            foreground="#7f8c8d", 
+            background="white",
+            wraplength=100
+        )
+        title_label.pack(pady=(0, 2))
+        
+        # Hacer también los labels clickables
+        if command:
+            for label in [value_label, title_label]:
+                label.configure(cursor="hand2")
+                label.bind("<Button-1>", lambda e, cmd=command: self.execute_command(cmd))
+                label.bind("<Enter>", lambda e: card_frame.configure(style="CardHover.TFrame"))
+                label.bind("<Leave>", lambda e: card_frame.configure(style="Card.TFrame"))
+        
+        return card_frame
+    
+    def create_presupuesto_stat_card(self, parent, title, value, color, command=None, tooltip=""):
+        """Crear una tarjeta de estadística específica para presupuestos con mejor formato"""
+        card_frame = ttk.Frame(parent, relief="solid", borderwidth=1)
+        card_frame.configure(style="Card.TFrame")
+        
+        # Configurar estilo para la tarjeta
+        style = ttk.Style()
+        style.configure("Card.TFrame", background="white", relief="solid", borderwidth=1)
+        
+        # Hacer la tarjeta clickable si tiene un comando
+        if command:
+            card_frame.configure(cursor="hand2")
+            card_frame.bind("<Button-1>", lambda e, cmd=command: self.execute_command(cmd))
+            # Efecto hover
+            card_frame.bind("<Enter>", lambda e: card_frame.configure(style="CardHover.TFrame"))
+            card_frame.bind("<Leave>", lambda e: card_frame.configure(style="Card.TFrame"))
+            style.configure("CardHover.TFrame", background="#f8f9fa", relief="solid", borderwidth=2)
+        
+        # Frame interno para mejor control del contenido
+        content_frame = ttk.Frame(card_frame, style="Card.TFrame")
+        content_frame.pack(expand=True, fill=tk.BOTH, padx=12, pady=12)
+        
+        # Contenido de la tarjeta - MEJOR FORMATEADO
+        value_label = ttk.Label(
+            content_frame, 
+            text=value, 
+            font=("Arial", 16, "bold"),
+            foreground=color, 
+            background="white",
+            justify=tk.CENTER
+        )
+        value_label.pack(pady=(5, 3))
+        
+        title_label = ttk.Label(
+            content_frame, 
+            text=title, 
+            font=("Arial", 9),
+            foreground="#7f8c8d", 
+            background="white",
+            justify=tk.CENTER,
+            wraplength=100
+        )
+        title_label.pack(pady=(0, 3))
+        
+        # Tooltip pequeño
+        if tooltip:
+            tooltip_label = ttk.Label(
+                content_frame,
+                text=tooltip,
+                font=("Arial", 7),
+                foreground="#bdc3c7",
+                background="white",
+                justify=tk.CENTER,
+                wraplength=120
             )
-            btn.pack(side=tk.LEFT, padx=5)
-       
-        # Segunda fila de botones
-        action_buttons_row2 = [
-            ("🏷️ Gestión de Marcas", self.show_marcas, "#27ae60"),
-            ("📦 Gestión de Productos", self.show_productos, "#1abc9c"),
-            ("🔧 Gestión de Servicios", self.show_servicios, "#d35400"),
-            ("💰 Presupuestos", self.show_presupuestos, "#8e44ad"),
-            ("⚙️ Configuración", self.show_configuracion, "#95a5a6")
-        ]
-       
-        row2_frame = ttk.Frame(actions_frame)
-        row2_frame.pack(pady=5)
-       
-        for text, command, color in action_buttons_row2:
-            btn = ttk.Button(
-                row2_frame,
-                text=text,
-                command=command,
-                width=20
-            )
-            btn.pack(side=tk.LEFT, padx=5)
-   
+            tooltip_label.pack(pady=(0, 2))
+        
+        # Hacer también los labels clickables
+        if command:
+            for label in [value_label, title_label]:
+                label.configure(cursor="hand2")
+                label.bind("<Button-1>", lambda e, cmd=command: self.execute_command(cmd))
+                label.bind("<Enter>", lambda e: card_frame.configure(style="CardHover.TFrame"))
+                label.bind("<Leave>", lambda e: card_frame.configure(style="Card.TFrame"))
+        
+        return card_frame
+
+    def execute_command(self, command):
+        """Ejecutar comando basado en el string del comando"""
+        command_map = {
+            "clientes": self.show_clientes,
+            "proveedores": self.show_proveedores,
+            "impuestos": self.show_impuestos,
+            "categorias": self.show_categorias,
+            "marcas": self.show_marcas,
+            "productos": self.show_productos,
+            "servicios": self.show_servicios,
+            "presupuestos": self.show_presupuestos
+        }
+        
+        if command in command_map:
+            command_map[command]()
+
     # MÉTODOS PARA LOS MÓDULOS
     def show_impuestos(self):
         """Abrir ventana de gestión de impuestos"""
@@ -562,9 +710,9 @@ class MainApp:
     def show_configuracion(self):
         """Abrir ventana de configuración del sistema"""
         try:        
-         ConfiguracionWindow(self.window)
+            ConfiguracionWindow(self.window)
         except Exception as e:
-         messagebox.showerror("Error", f"No se pudo abrir la configuración: {e}")
+            messagebox.showerror("Error", f"No se pudo abrir la configuración: {e}")
 
     def clear_main_frame(self):
         for widget in self.main_frame.winfo_children():

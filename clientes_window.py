@@ -329,8 +329,6 @@ class ClientesWindow:
                 self.cargar_clientes()
 
 
-
-
 class FormularioCliente:
     def __init__(self, parent, clientes_window, cliente_data):
         self.parent = parent
@@ -570,7 +568,7 @@ class FormularioCliente:
         """Guardar cliente - VERSIÓN CORREGIDA"""
         print("DEBUG - Iniciando guardado...")
        
-        if not self.validar_formululo():
+        if not self.validar_formulario():
             print("DEBUG - Validación falló")
             return
        
