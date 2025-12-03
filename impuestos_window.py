@@ -163,7 +163,7 @@ class ImpuestosWindow:
                 impuesto['nombre'],
                 f"{impuesto['porcentaje']}%",
                 tipo_display,
-                impuesto['display_name']
+                impuesto.get('display_name', '')  # Usar get para compatibilidad
             ))
    
     def seleccionar_impuesto(self, event):
@@ -199,6 +199,7 @@ class ImpuestosWindow:
             filtros['tipo'] = 'venta'
         elif tipo_seleccionado == "Ambos":
             filtros['tipo'] = 'ambos'
+        # "Todos" no envía filtro de tipo
        
         self.cargar_impuestos(filtros)
    
@@ -254,16 +255,18 @@ class FormularioImpuesto:
         # Crear ventana
         self.window = tk.Toplevel(parent)
         self.window.title("Nuevo Impuesto" if self.es_nuevo else "Editar Impuesto")
-        self.window.geometry("400x300")
+        # Aumentar tamaño para incluir display_name
+        self.window.geometry("450x380")
         self.window.transient(parent)
         self.window.grab_set()
        
-        self.center_window(400, 300)
+        self.center_window(450, 380)
        
         # INICIALIZAR VARIABLES
         self.nombre_var = tk.StringVar(self.window)
         self.porcentaje_var = tk.StringVar(self.window)
         self.tipo_var = tk.StringVar(self.window, value="Ambos")
+        self.display_name_var = tk.StringVar(self.window)
        
         self.create_widgets()
         if not self.es_nuevo:
@@ -280,31 +283,127 @@ class FormularioImpuesto:
         main_frame = ttk.Frame(self.window, padding="20")
         main_frame.pack(fill=tk.BOTH, expand=True)
        
-        # Nombre
-        ttk.Label(main_frame, text="Nombre:*").grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
-        self.nombre_entry = ttk.Entry(main_frame, textvariable=self.nombre_var, width=30)
-        self.nombre_entry.grid(row=0, column=1, sticky=tk.W+tk.E, pady=(0, 10), padx=(10, 0))
+        # GUÍA VISUAL DE EJEMPLOS
+        guide_frame = ttk.LabelFrame(main_frame, text="📌 EJEMPLOS", padding="10")
+        guide_frame.grid(row=0, column=0, columnspan=3, sticky=tk.W+tk.E, pady=(0, 15), padx=(0, 0))
+        
+        guide_text = """• IVA_21 → IVA 21%
+• IIBB_CABA → Ingresos Brutos CABA 3.5%
+• IMP_INT_PINTURAS → Imp. Interno Pinturas 8%"""
+        
+        guide_label = ttk.Label(guide_frame, text=guide_text, justify=tk.LEFT)
+        guide_label.pack(anchor=tk.W)
+        
+        # Nombre (técnico)
+        ttk.Label(main_frame, text="Nombre:*", font=('TkDefaultFont', 9, 'bold')).grid(
+            row=1, column=0, sticky=tk.W, pady=(0, 5)
+        )
+        self.nombre_entry = ttk.Entry(main_frame, textvariable=self.nombre_var, width=35)
+        self.nombre_entry.grid(row=1, column=1, columnspan=2, sticky=tk.W+tk.E, pady=(0, 5), padx=(10, 0))
+        
+        # Tooltip para nombre
+        nombre_tip = ttk.Label(
+            main_frame, 
+            text="Técnico, sin espacios. Ej: IVA_21, IIBB_CABA", 
+            font=('TkDefaultFont', 8),
+            foreground='gray'
+        )
+        nombre_tip.grid(row=2, column=1, columnspan=2, sticky=tk.W, pady=(0, 10))
        
         # Porcentaje
-        ttk.Label(main_frame, text="Porcentaje (%):*").grid(row=1, column=0, sticky=tk.W, pady=(0, 10))
-        self.porcentaje_entry = ttk.Entry(main_frame, textvariable=self.porcentaje_var, width=30)
-        self.porcentaje_entry.grid(row=1, column=1, sticky=tk.W+tk.E, pady=(0, 10), padx=(10, 0))
+        ttk.Label(main_frame, text="Porcentaje (%):*", font=('TkDefaultFont', 9, 'bold')).grid(
+            row=3, column=0, sticky=tk.W, pady=(0, 5)
+        )
+        self.porcentaje_entry = ttk.Entry(main_frame, textvariable=self.porcentaje_var, width=35)
+        self.porcentaje_entry.grid(row=3, column=1, columnspan=2, sticky=tk.W+tk.E, pady=(0, 5), padx=(10, 0))
        
         # Tipo
-        ttk.Label(main_frame, text="Tipo:*").grid(row=2, column=0, sticky=tk.W, pady=(0, 20))
-        tipo_combo = ttk.Combobox(main_frame, textvariable=self.tipo_var, state="readonly", width=27)
+        ttk.Label(main_frame, text="Tipo:*", font=('TkDefaultFont', 9, 'bold')).grid(
+            row=4, column=0, sticky=tk.W, pady=(0, 5)
+        )
+        tipo_combo = ttk.Combobox(
+            main_frame, 
+            textvariable=self.tipo_var, 
+            state="readonly", 
+            width=32
+        )
         tipo_combo['values'] = list(self.tipo_map.keys())
-        tipo_combo.grid(row=2, column=1, sticky=tk.W+tk.E, pady=(0, 20), padx=(10, 0))
+        tipo_combo.grid(row=4, column=1, columnspan=2, sticky=tk.W+tk.E, pady=(0, 10), padx=(10, 0))
+       
+        # Display Name (opcional)
+        ttk.Label(main_frame, text="Display Name:", font=('TkDefaultFont', 9)).grid(
+            row=5, column=0, sticky=tk.W, pady=(0, 5)
+        )
+        self.display_name_entry = ttk.Entry(
+            main_frame, 
+            textvariable=self.display_name_var, 
+            width=35
+        )
+        self.display_name_entry.grid(row=5, column=1, columnspan=2, sticky=tk.W+tk.E, pady=(0, 5), padx=(10, 0))
+        
+        # Botón de ayuda para display name
+        info_button = ttk.Button(
+            main_frame, 
+            text="ℹ️", 
+            width=3,
+            command=self.mostrar_info_display_name
+        )
+        info_button.grid(row=5, column=3, padx=(5, 0), pady=(0, 5))
+        
+        # Tooltip para display name
+        display_tip = ttk.Label(
+            main_frame, 
+            text="Opcional - Aparece en facturas. Si se deja vacío, se genera automáticamente", 
+            font=('TkDefaultFont', 8),
+            foreground='gray'
+        )
+        display_tip.grid(row=6, column=1, columnspan=2, sticky=tk.W, pady=(0, 20))
        
         # Botones
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=3, column=0, columnspan=2, pady=10)
+        button_frame.grid(row=7, column=0, columnspan=4, pady=(10, 0))
        
-        ttk.Button(button_frame, text="💾 Guardar", command=self.guardar).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="❌ Cancelar", command=self.window.destroy).pack(side=tk.LEFT, padx=5)
+        ttk.Button(
+            button_frame, 
+            text="💾 Guardar", 
+            command=self.guardar,
+            width=15
+        ).pack(side=tk.LEFT, padx=5)
+        
+        ttk.Button(
+            button_frame, 
+            text="❌ Cancelar", 
+            command=self.window.destroy,
+            width=15
+        ).pack(side=tk.LEFT, padx=5)
        
         # Configurar grid weights
         main_frame.columnconfigure(1, weight=1)
+        main_frame.columnconfigure(2, weight=0)
+   
+    def mostrar_info_display_name(self):
+        """Mostrar información sobre display name"""
+        info_text = """📌 GUÍA: NOMBRE vs DISPLAY NAME
+
+NOMBRE (Técnico/Administrativo):
+• Para el sistema interno
+• Sin espacios, único
+• No cambiar después de creado
+• Ejemplo: IVA_21
+
+DISPLAY NAME (Visual):
+• Para mostrar al usuario
+• Aparece en facturas y listados
+• Puede incluir espacios y símbolos
+• Personalizable
+• Ejemplo: IVA 21%
+
+⚠️ Si no completa Display Name:
+Se generará automáticamente:
+  'Nombre (Porcentaje%)'
+  Ej: 'IVA_21 (21.00%)'"""
+        
+        messagebox.showinfo("Información - Display Name", info_text)
    
     def cargar_datos(self):
         """Cargar datos del impuesto en el formulario"""
@@ -320,12 +419,22 @@ class FormularioImpuesto:
             "Ambos"
         )
         self.tipo_var.set(tipo_display)
+        
+        # Cargar display_name si existe
+        if 'display_name' in self.impuesto_data and self.impuesto_data['display_name']:
+            self.display_name_var.set(self.impuesto_data['display_name'])
    
     def validar_formulario(self):
         """Validar datos del formulario"""
         # Validar nombre
-        if not self.nombre_var.get().strip():
+        nombre = self.nombre_var.get().strip()
+        if not nombre:
             messagebox.showerror("Error", "El nombre es obligatorio")
+            return False
+        
+        # Validar que el nombre no tenga espacios
+        if ' ' in nombre:
+            messagebox.showerror("Error", "El nombre no puede contener espacios. Use guiones bajos (_)")
             return False
        
         # Validar porcentaje
@@ -340,7 +449,7 @@ class FormularioImpuesto:
             return False
        
         return True
-   
+
     def guardar(self):
         """Guardar impuesto"""
         if not self.validar_formulario():
@@ -355,6 +464,20 @@ class FormularioImpuesto:
             'porcentaje': float(self.porcentaje_var.get().strip()),
             'tipo': tipo_backend
         }
+        
+        # **CAMBIOS AQUÍ:** Manejar display_name correctamente
+        display_name = self.display_name_var.get().strip()
+        if display_name:
+            # Si el usuario escribió algo, enviarlo
+            datos['display_name'] = display_name
+        else:
+            # **IMPORTANTE:** Si está vacío, enviar string vacío explícitamente
+            # Esto permite que Django genere el display_name automáticamente
+            datos['display_name'] = ''
+        
+        # Si estamos editando, NO enviar el ID como parte de datos
+        # Django REST Framework ya sabe el ID por la URL
+        # datos['id'] = self.impuesto_data['id']  # ¡QUITA ESTA LÍNEA!
        
         manager = ImpuestosManager()
         if self.es_nuevo:
