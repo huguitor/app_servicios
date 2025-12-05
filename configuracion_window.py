@@ -1,4 +1,3 @@
-# app_escritorio/configuracion_window.py
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from configuracion_manager import ConfiguracionManager
@@ -14,11 +13,11 @@ class ConfiguracionWindow:
         # Crear ventana
         self.window = tk.Toplevel(parent)
         self.window.title("Configuración del Sistema")
-        self.window.geometry("900x700")
+        self.window.geometry("900x750")  # Aumentada para nuevo campo
         self.window.transient(parent)
         self.window.grab_set()
        
-        self.center_window(900, 700)
+        self.center_window(900, 750)
         self.set_icon()
        
         # Variables
@@ -72,6 +71,10 @@ class ConfiguracionWindow:
             self.config_data = self.manager.obtener_configuracion_actual()
             if self.config_data:
                 print(f"✅ Configuración cargada: {self.config_data.get('nombre_empresa', 'Sin nombre')}")
+                # 🔥 DEBUG: Mostrar estado de sincronización
+                estado_sync = self.config_data.get('estado_sincronizacion_numeracion', {})
+                if estado_sync:
+                    print(f"🔄 Estado sincronización: {estado_sync.get('mensaje', 'No disponible')}")
             else:
                 print("❌ No se pudo cargar la configuración")
         except Exception as e:
@@ -96,7 +99,7 @@ class ConfiguracionWindow:
         empresa_frame = ttk.Frame(notebook, padding="10")
         notebook.add(empresa_frame, text="🏢 Empresa")
        
-        # Pestaña: Configuración Presupuestos
+        # Pestaña: Configuración Presupuestos (MODIFICADA)
         presupuestos_frame = ttk.Frame(notebook, padding="10")
         notebook.add(presupuestos_frame, text="💰 Presupuestos")
        
@@ -107,7 +110,7 @@ class ConfiguracionWindow:
         # Crear contenido de las pestañas
         self.create_login_tab(login_frame)
         self.create_empresa_tab(empresa_frame)
-        self.create_presupuestos_tab(presupuestos_frame)
+        self.create_presupuestos_tab(presupuestos_frame)  # MODIFICADA
         self.create_logos_tab(logos_frame)
        
         # Botones de acción
@@ -215,34 +218,145 @@ class ConfiguracionWindow:
         parent.columnconfigure(1, weight=1)
 
     def create_presupuestos_tab(self, parent):
-        """Crear pestaña de configuración de presupuestos"""
-        # Variables
+        """🔄 MODIFICADA: Crear pestaña de configuración de presupuestos con numeración"""
+        # Variables existentes
         self.iva_por_defecto_var = tk.StringVar(value=str(self.config_data.get('iva_por_defecto', '21.00')))
         self.dias_validez_var = tk.StringVar(value=str(self.config_data.get('dias_validez_presupuesto', '30')))
         self.moneda_var = tk.StringVar(value=self.config_data.get('moneda', 'ARS'))
         self.condiciones_comerciales_var = tk.StringVar(value=self.config_data.get('condiciones_comerciales', ''))
        
-        # Campos de presupuestos
-        ttk.Label(parent, text="IVA por Defecto (%):*").grid(row=0, column=0, sticky=tk.W, pady=5)
-        ttk.Entry(parent, textvariable=self.iva_por_defecto_var, width=10).grid(row=0, column=1, sticky=tk.W, pady=5, padx=(10, 0))
+        # ⭐⭐ NUEVA VARIABLE: Control de numeración
+        self.proximo_numero_var = tk.StringVar(value=str(self.config_data.get('proximo_numero_presupuesto', '1')))
        
-        ttk.Label(parent, text="Días de Validez:*").grid(row=1, column=0, sticky=tk.W, pady=5)
-        ttk.Entry(parent, textvariable=self.dias_validez_var, width=10).grid(row=1, column=1, sticky=tk.W, pady=5, padx=(10, 0))
+        # Frame para control de numeración
+        numeracion_frame = ttk.LabelFrame(parent, text="🔢 Control de Numeración de Presupuestos", padding="10")
+        numeracion_frame.grid(row=0, column=0, columnspan=2, sticky=tk.W+tk.E, pady=(0, 20))
        
-        ttk.Label(parent, text="Moneda:*").grid(row=2, column=0, sticky=tk.W, pady=5)
-        moneda_combo = ttk.Combobox(parent, textvariable=self.moneda_var, width=10, state="readonly")
+        # Campo: Próximo número
+        ttk.Label(numeracion_frame, text="Próximo Número de Presupuesto:*", 
+                 font=("Arial", 9, "bold")).grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+        ttk.Label(numeracion_frame, text="Próximo número que se usará para nuevos presupuestos", 
+                 font=("Arial", 8), foreground="gray").grid(row=0, column=1, sticky=tk.W, pady=(0, 5))
+        self.proximo_numero_entry = ttk.Entry(numeracion_frame, textvariable=self.proximo_numero_var, width=15)
+        self.proximo_numero_entry.grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
+       
+        # Botón para verificar sincronización
+        self.sync_button = ttk.Button(numeracion_frame, text="🔄 Verificar Sincronización", 
+                                     command=self.verificar_sincronizacion)
+        self.sync_button.grid(row=2, column=0, sticky=tk.W, pady=(0, 5))
+       
+        # Label para mostrar estado de sincronización
+        self.sync_status_label = ttk.Label(numeracion_frame, text="", font=("Arial", 9))
+        self.sync_status_label.grid(row=2, column=1, sticky=tk.W, padx=(10, 0))
+       
+        # Frame para otros parámetros de presupuestos
+        parametros_frame = ttk.LabelFrame(parent, text="⚙️ Parámetros Generales de Presupuestos", padding="10")
+        parametros_frame.grid(row=1, column=0, columnspan=2, sticky=tk.W+tk.E, pady=(0, 20))
+       
+        # Campos de presupuestos (existentes, reorganizados)
+        ttk.Label(parametros_frame, text="IVA por Defecto (%):*").grid(row=0, column=0, sticky=tk.W, pady=5)
+        ttk.Entry(parametros_frame, textvariable=self.iva_por_defecto_var, width=10).grid(row=0, column=1, sticky=tk.W, pady=5, padx=(10, 0))
+       
+        ttk.Label(parametros_frame, text="Días de Validez:*").grid(row=1, column=0, sticky=tk.W, pady=5)
+        ttk.Entry(parametros_frame, textvariable=self.dias_validez_var, width=10).grid(row=1, column=1, sticky=tk.W, pady=5, padx=(10, 0))
+       
+        ttk.Label(parametros_frame, text="Moneda:*").grid(row=2, column=0, sticky=tk.W, pady=5)
+        moneda_combo = ttk.Combobox(parametros_frame, textvariable=self.moneda_var, width=10, state="readonly")
         moneda_combo['values'] = ['ARS', 'USD', 'EUR']
         moneda_combo.grid(row=2, column=1, sticky=tk.W, pady=5, padx=(10, 0))
        
-        ttk.Label(parent, text="Condiciones Comerciales por Defecto:").grid(row=3, column=0, sticky=tk.NW, pady=5)
-        self.condiciones_text = tk.Text(parent, width=50, height=8)
-        self.condiciones_text.grid(row=3, column=1, sticky=tk.W+tk.E, pady=5, padx=(10, 0))
+        # Frame para condiciones comerciales
+        condiciones_frame = ttk.LabelFrame(parent, text="📝 Condiciones Comerciales por Defecto", padding="10")
+        condiciones_frame.grid(row=2, column=0, columnspan=2, sticky=tk.W+tk.E+tk.N+tk.S, pady=(0, 10))
+       
+        ttk.Label(condiciones_frame, text="Condiciones Comerciales:").grid(row=0, column=0, sticky=tk.NW, pady=5)
+        self.condiciones_text = tk.Text(condiciones_frame, width=50, height=8)
+        self.condiciones_text.grid(row=0, column=1, sticky=tk.W+tk.E+tk.N+tk.S, pady=5, padx=(10, 0))
        
         # Cargar condiciones existentes
         condiciones = self.config_data.get('condiciones_comerciales', '')
         self.condiciones_text.insert('1.0', condiciones.replace('\r\n', '\n'))
        
+        # Configurar expansión
         parent.columnconfigure(1, weight=1)
+        condiciones_frame.columnconfigure(1, weight=1)
+        condiciones_frame.rowconfigure(0, weight=1)
+       
+        # Verificar estado inicial de sincronización
+        self.verificar_sincronizacion()
+
+    def verificar_sincronizacion(self):
+        """Verificar estado de sincronización con Comprobante"""
+        try:
+            # Obtener estado de sincronización desde la configuración
+            estado_sync = self.config_data.get('estado_sincronizacion_numeracion', {})
+           
+            if not estado_sync:
+                self.sync_status_label.config(
+                    text="⚠️ No se pudo verificar estado",
+                    foreground="orange"
+                )
+                return
+           
+            if estado_sync.get('sincronizado'):
+                # Sincronizado correctamente
+                mensaje = f"✅ SINCRONIZADO\nConfig: {estado_sync.get('configuracion', 'N/A')} | "
+                mensaje += f"Comprobante: {estado_sync.get('comprobante', 'N/A')}"
+                self.sync_status_label.config(
+                    text=mensaje,
+                    foreground="green"
+                )
+            else:
+                # Desincronizado
+                mensaje = f"⚠️ DESINCRONIZADO\nConfig: {estado_sync.get('configuracion', 'N/A')} | "
+                mensaje += f"Comprobante: {estado_sync.get('comprobante', 'N/A')}"
+               
+                # Mostrar advertencia visual
+                self.sync_status_label.config(
+                    text=mensaje,
+                    foreground="orange"
+                )
+               
+                # Preguntar si quiere sincronizar automáticamente
+                if messagebox.askyesno("Desincronización Detectada", 
+                                      f"Hay una desincronización entre la configuración y el comprobante.\n\n"
+                                      f"Configuración: {estado_sync.get('configuracion', 'N/A')}\n"
+                                      f"Comprobante: {estado_sync.get('comprobante', 'N/A')}\n\n"
+                                      "¿Desea sincronizar automáticamente con el comprobante?"):
+                    self.sincronizar_automaticamente()
+                   
+        except Exception as e:
+            print(f"❌ Error verificando sincronización: {e}")
+            self.sync_status_label.config(
+                text=f"❌ Error: {str(e)[:50]}...",
+                foreground="red"
+            )
+
+    def sincronizar_automaticamente(self):
+        """Sincronizar automáticamente con Comprobante"""
+        try:
+            # Obtener el próximo número actual del campo
+            proximo_numero = self.proximo_numero_var.get()
+           
+            # Preparar datos para actualizar (esto activará la sincronización automática en Django)
+            datos_actualizacion = {
+                'proximo_numero_presupuesto': int(proximo_numero)
+            }
+           
+            # Actualizar configuración (esto activará sync automático en models.py)
+            if self.manager.actualizar_configuracion(datos_actualizacion):
+                messagebox.showinfo("Éxito", "Sincronización iniciada. Se sincronizará automáticamente al guardar.")
+               
+                # Recargar configuración para ver estado actualizado
+                self.cargar_configuracion()
+                self.verificar_sincronizacion()
+            else:
+                messagebox.showerror("Error", "No se pudo iniciar la sincronización")
+               
+        except ValueError:
+            messagebox.showerror("Error", "El próximo número debe ser un número entero válido")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error sincronizando: {e}")
 
     def create_logos_tab(self, parent):
         """Crear pestaña de logos e imágenes"""
@@ -413,7 +527,7 @@ class ConfiguracionWindow:
                   command=self.window.destroy).pack(side=tk.LEFT, padx=5)
 
     def validar_formulario(self):
-        """Validar datos del formulario"""
+        """Validar datos del formulario incluyendo numeración"""
         if not self.nombre_empresa_var.get().strip():
             messagebox.showerror("Error", "El nombre de la empresa es obligatorio")
             return False
@@ -430,6 +544,20 @@ class ConfiguracionWindow:
             messagebox.showerror("Error", "El CUIT es obligatorio")
             return False
        
+        # ⭐⭐ NUEVA VALIDACIÓN: Próximo número
+        try:
+            proximo_numero = int(self.proximo_numero_var.get())
+            if proximo_numero <= 0:
+                messagebox.showerror("Error", "El próximo número debe ser mayor a 0")
+                return False
+            if proximo_numero > 999999:
+                messagebox.showerror("Error", "El próximo número es demasiado grande")
+                return False
+        except ValueError:
+            messagebox.showerror("Error", "El próximo número debe ser un número entero válido")
+            return False
+       
+        # Validaciones existentes
         try:
             iva = float(self.iva_por_defecto_var.get())
             if iva < 0:
@@ -451,7 +579,7 @@ class ConfiguracionWindow:
         return True
 
     def guardar_configuracion(self):
-        """Guardar configuración incluyendo login & branding"""
+        """🔄 MODIFICADA: Guardar configuración incluyendo numeración"""
         if not self.validar_formulario():
             return
        
@@ -472,9 +600,11 @@ class ConfiguracionWindow:
                 'dias_validez_presupuesto': int(self.dias_validez_var.get()),
                 'moneda': self.moneda_var.get(),
                 'condiciones_comerciales': self.condiciones_text.get('1.0', tk.END).strip(),
+                # ⭐⭐ NUEVO CAMPO: Próximo número de presupuesto
+                'proximo_numero_presupuesto': int(self.proximo_numero_var.get()),
             }
            
-            print("💾 Guardando configuración...")
+            print("💾 Guardando configuración con nuevo campo de numeración...")
             print(f"📦 Datos a guardar: {datos}")
            
             # Preparar archivos para subir
@@ -486,7 +616,9 @@ class ConfiguracionWindow:
            
             # Guardar configuración
             if self.manager.actualizar_configuracion(datos):
-                messagebox.showinfo("Éxito", "Configuración guardada correctamente")
+                messagebox.showinfo("Éxito", 
+                                  "Configuración guardada correctamente.\n\n"
+                                  "✅ El próximo número se sincronizará automáticamente con Comprobante.")
                 self.window.destroy()
             else:
                 messagebox.showerror("Error", "No se pudo guardar la configuración")
@@ -499,8 +631,16 @@ class ConfiguracionWindow:
         """Recargar configuración desde el servidor"""
         try:
             self.cargar_configuracion()
-            # Recargar imágenes también
+            # Actualizar campo de próximo número
+            if 'proximo_numero_presupuesto' in self.config_data:
+                self.proximo_numero_var.set(str(self.config_data['proximo_numero_presupuesto']))
+           
+            # Recargar imágenes
             self.cargar_imagenes_existentes()
+           
+            # Verificar sincronización actualizada
+            self.verificar_sincronizacion()
+           
             messagebox.showinfo("Éxito", "Configuración recargada correctamente")
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo recargar la configuración: {e}")

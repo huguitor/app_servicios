@@ -1,5 +1,5 @@
-# /app_escritorio/pdf_generator.py
 import os
+import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from datetime import datetime
@@ -14,6 +14,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 # 🔥 NUEVA IMPORTACIÓN
 from configuracion_manager import ConfiguracionManager
 
+
 class PDFGenerator:
     def __init__(self):
         self.styles = getSampleStyleSheet()
@@ -25,7 +26,8 @@ class PDFGenerator:
         # 🔥 NUEVO: Cargar datos de empresa al inicializar
         self.datos_empresa = self.config_manager.obtener_datos_empresa()
         print(f"🏢 Datos empresa cargados para PDF: {self.datos_empresa.get('nombre_empresa', 'No disponible')}")
-   
+        print(f"🌐 Página web desde configuración: {self.datos_empresa.get('pagina_web', 'No disponible')}")
+    
     def _setup_custom_styles(self):
         """Configurar estilos personalizados"""
         # Estilo para título principal
@@ -37,7 +39,7 @@ class PDFGenerator:
             alignment=1,  # Centrado
             textColor=colors.navy
         ))
-       
+        
         # Estilo para información de empresa
         self.styles.add(ParagraphStyle(
             name='EmpresaInfo',
@@ -47,10 +49,20 @@ class PDFGenerator:
         ))
 
     def _obtener_datos_empresa_pdf(self):
-        """Obtener datos de empresa para usar en el PDF"""
+        """Obtener datos de empresa para usar en el PDF - VERSIÓN CORREGIDA"""
         try:
             # 🔥 USAR DATOS REALES DE LA CONFIGURACIÓN
             datos = self.datos_empresa
+            
+            # 🔥 IMPORTANTE: Obtener PÁGINA WEB REAL de la configuración
+            pagina_web_real = datos.get('pagina_web', '')
+            
+            # Si no hay página web en la configuración, usar un valor por defecto apropiado
+            if not pagina_web_real or pagina_web_real.strip() == '':
+                pagina_web_real = 'https://www.labservicios.com.ar'
+                print("⚠️ No hay página web en configuración, usando valor por defecto")
+            else:
+                print(f"✅ Página web obtenida de configuración: {pagina_web_real}")
             
             empresa_info = {
                 'nombre_empresa': datos.get('nombre_empresa', 'LAB Servicios'),
@@ -58,16 +70,21 @@ class PDFGenerator:
                 'direccion': datos.get('direccion', 'Río Neuquén 4100 - Plottier - Neuquén'),
                 'telefono': datos.get('telefono', '+542995576550'),
                 'email': datos.get('email', 'labservicios@outlook.com'),
-                'pagina_web': datos.get('pagina_web', 'https://www.labservicios.com.ar'),
-                'condiciones_comerciales': datos.get('condiciones_comerciales', '')
+                'pagina_web': pagina_web_real,  # 🔥 USAR VALOR REAL
+                'condiciones_comerciales': datos.get('condiciones_comerciales', ''),
+                'logo_principal_url': datos.get('logo_principal_url'),  # 🔥 PARA BUSCAR LOGO
+                'logo_principal_absolute_url': datos.get('logo_principal_absolute_url')
             }
             
             print(f"📋 Datos empresa para PDF: {empresa_info['nombre_empresa']}")
+            print(f"🌐 Página web para PDF: {empresa_info['pagina_web']}")
+            print(f"🎨 Logo URL disponible: {'Sí' if empresa_info.get('logo_principal_url') else 'No'}")
+            
             return empresa_info
             
         except Exception as e:
             print(f"❌ Error obteniendo datos empresa para PDF: {e}")
-            # 🔥 FALLBACK POR DEFECTO
+            # 🔥 FALLBACK POR DEFECTO CON LOGOS
             return {
                 'nombre_empresa': 'LAB Servicios',
                 'cuit': '23-14852171-9',
@@ -75,15 +92,131 @@ class PDFGenerator:
                 'telefono': '+542995576550',
                 'email': 'labservicios@outlook.com',
                 'pagina_web': 'https://www.labservicios.com.ar',
-                'condiciones_comerciales': 'Precios expresados en pesos Argentinos\nPlazo de entrega: Inmediata\nForma de Pago: 30 días'
+                'condiciones_comerciales': 'Precios expresados en pesos Argentinos\nPlazo de entrega: Inmediata\nForma de Pago: 30 días',
+                'logo_principal_url': None,
+                'logo_principal_absolute_url': None
             }
+
+    def _buscar_logo_empresa(self):
+        """Buscar el logo de la empresa en las rutas posibles - VERSIÓN ESPECÍFICA PARA PRODUCCIÓN"""
+        print("=" * 60)
+        print("🔍 BÚSQUEDA DE LOGO PARA PDF - MODO PRODUCCIÓN")
+        print("=" * 60)
+        
+        # 🔥 RUTA EXACTA DE PRODUCCIÓN (según lo que me dijiste)
+        ruta_exacta_produccion = r"c:/LabServicios/data/media/config/logos/logoLAB_form.jpg"
+        print(f"🎯 Ruta exacta de producción: {ruta_exacta_produccion}")
+        
+        # 🔥 PRIMERO: Verificar la ruta exacta de producción
+        if os.path.exists(ruta_exacta_produccion):
+            print(f"✅ ¡LOGO ENCONTRADO EN RUTA EXACTA!: {ruta_exacta_produccion}")
+            return ruta_exacta_produccion
+        
+        # 🔥 SEGUNDO: Rutas alternativas (por si cambia la ubicación)
+        rutas_alternativas = [
+            # Rutas absolutas
+            r"C:\LabServicios\data\media\config\logos\logoLAB_form.jpg",
+            r"C:\LabServicios\data\media\config\logos\logo_principal.png",
+            r"C:\LabServicios\data\media\config\logos\logo_principal.jpg",
+            r"C:\LabServicios\data\media\config\logos\logo.png",
+            r"C:\LabServicios\data\media\config\logos\logo.jpg",
+            
+            # Rutas relativas (para .exe en producción)
+            os.path.join('data', 'media', 'config', 'logos', 'logoLAB_form.jpg'),
+            os.path.join('data', 'media', 'config', 'logos', 'logo_principal.png'),
+            os.path.join('data', 'media', 'config', 'logos', 'logo_principal.jpg'),
+            os.path.join('data', 'media', 'config', 'logos', 'logo.png'),
+            os.path.join('data', 'media', 'config', 'logos', 'logo.jpg'),
+            
+            # Rutas desde directorio actual
+            os.path.join('..', 'data', 'media', 'config', 'logos', 'logoLAB_form.jpg'),
+            os.path.join('..', '..', 'data', 'media', 'config', 'logos', 'logoLAB_form.jpg'),
+            
+            # Rutas de desarrollo
+            os.path.join('media', 'config', 'logos', 'logoLAB_form.jpg'),
+            os.path.join('..', 'media', 'config', 'logos', 'logoLAB_form.jpg'),
+            os.path.join('..', '..', 'media', 'config', 'logos', 'logoLAB_form.jpg'),
+        ]
+        
+        print("\n🔍 Probando rutas alternativas...")
+        for ruta in rutas_alternativas:
+            # Normalizar ruta para diferentes sistemas operativos
+            ruta_normalizada = os.path.normpath(ruta)
+            print(f"  🔎 Probando: {ruta_normalizada}")
+            if os.path.exists(ruta_normalizada):
+                print(f"  ✅ ¡LOGO ENCONTRADO!: {ruta_normalizada}")
+                return ruta_normalizada
+            else:
+                print(f"  ❌ No existe")
+        
+        # 🔥 TERCERO: Intentar obtener logo de configuración Django (URL)
+        try:
+            if self.datos_empresa and 'logo_principal_url' in self.datos_empresa:
+                logo_url = self.datos_empresa.get('logo_principal_url')
+                if logo_url and logo_url.startswith('/media/'):
+                    # Convertir URL Django a ruta local
+                    relative_path = logo_url[7:]  # Quita "/media/"
+                    rutas_django = [
+                        os.path.join('data', 'media', relative_path),
+                        os.path.join('..', 'data', 'media', relative_path),
+                        os.path.join('..', '..', 'data', 'media', relative_path),
+                        os.path.join('media', relative_path),
+                        os.path.join('..', 'media', relative_path),
+                    ]
+                    
+                    print("\n🔍 Probando rutas Django...")
+                    for ruta in rutas_django:
+                        ruta_normalizada = os.path.normpath(ruta)
+                        print(f"  🔎 Probando: {ruta_normalizada}")
+                        if os.path.exists(ruta_normalizada):
+                            print(f"  ✅ ¡LOGO ENCONTRADO!: {ruta_normalizada}")
+                            return ruta_normalizada
+        except Exception as e:
+            print(f"⚠️ Error buscando logo de Django: {e}")
+        
+        print("\n❌ Logo no encontrado en ninguna ubicación conocida")
+        return None
+
+    def _dibujar_logo_fallback(self, canvas, x, y, nombre_empresa):
+        """Dibujar un logo de fallback cuando no se encuentra la imagen"""
+        print("🎨 Dibujando logo de fallback...")
+        
+        # Dibujar un rectángulo gris
+        canvas.setFillColor(colors.HexColor('#F0F0F0'))
+        canvas.rect(x, y, 80, 40, fill=1)
+        
+        # Dibujar borde
+        canvas.setStrokeColor(colors.HexColor('#CCCCCC'))
+        canvas.setLineWidth(1)
+        canvas.rect(x, y, 80, 40)
+        
+        # Dibujar texto
+        canvas.setFillColor(colors.HexColor('#666666'))
+        canvas.setFont('Helvetica-Bold', 8)
+        
+        # Nombre de empresa (abreviado)
+        if len(nombre_empresa) > 10:
+            nombre_abreviado = nombre_empresa[:8] + '..'
+        else:
+            nombre_abreviado = nombre_empresa
+            
+        texto_width = canvas.stringWidth(nombre_abreviado, 'Helvetica-Bold', 8)
+        texto_x = x + (80 - texto_width) / 2
+        
+        canvas.drawString(texto_x, y + 25, nombre_abreviado)
+        
+        # Texto "LOGO"
+        canvas.setFont('Helvetica', 7)
+        logo_text_width = canvas.stringWidth("LOGO", 'Helvetica', 7)
+        logo_text_x = x + (80 - logo_text_width) / 2
+        canvas.drawString(logo_text_x, y + 15, "LOGO")
 
     def _sanitizar_datos_presupuesto(self, presupuesto_data):
         """Sanitizar y convertir tipos de datos del presupuesto"""
         try:
             # Crear copia para no modificar el original
             sanitized = presupuesto_data.copy()
-           
+            
             # Convertir items
             if 'items' in sanitized:
                 for item in sanitized['items']:
@@ -93,12 +226,12 @@ class PDFGenerator:
                             item['cantidad'] = int(float(item['cantidad']))
                         elif isinstance(item['cantidad'], float):
                             item['cantidad'] = int(item['cantidad'])
-                   
+                    
                     # Convertir precio a float
                     if 'precio_unitario' in item:
                         if isinstance(item['precio_unitario'], str):
                             item['precio_unitario'] = float(item['precio_unitario'])
-           
+            
             # Asegurar que los totales sean números
             numeric_fields = ['subtotal', 'iva_valor', 'total', 'iva_porcentaje']
             for field in numeric_fields:
@@ -107,9 +240,9 @@ class PDFGenerator:
                         sanitized[field] = float(sanitized[field])
                     except (ValueError, TypeError):
                         sanitized[field] = 0.0
-           
+            
             return sanitized
-           
+            
         except Exception as e:
             print(f"⚠️ Error sanitizando datos: {e}")
             return presupuesto_data
@@ -123,24 +256,50 @@ class PDFGenerator:
         
         # 🔥 LOGO A LA IZQUIERDA
         try:
-            logo_path = "logoLAB_form.jpg"
-            if os.path.exists(logo_path):
+            # Buscar logo en las rutas correctas
+            logo_path = self._buscar_logo_empresa()
+            
+            if logo_path and os.path.exists(logo_path):
                 logo_x = 40
                 logo_y = A4[1] - 80  # Parte superior
                 
-                # Enlace clickeable
-                canvas.linkURL(
-                    pagina_web,
-                    (logo_x, logo_y, logo_x + 80, logo_y + 40),
-                    relative=0
-                )
+                # Verificar que el archivo sea válido
+                if os.path.getsize(logo_path) > 0:
+                    # Enlace clickeable a la página web REAL de la configuración
+                    canvas.linkURL(
+                        pagina_web,
+                        (logo_x, logo_y, logo_x + 80, logo_y + 40),
+                        relative=0
+                    )
+                    
+                    # Dibujar logo con manejo de errores
+                    try:
+                        canvas.drawImage(logo_path, logo_x, logo_y, width=80, height=40, mask='auto')
+                        print(f"✅ Logo dibujado exitosamente: {os.path.basename(logo_path)}")
+                        print(f"📏 Tamaño del archivo: {os.path.getsize(logo_path)} bytes")
+                        print(f"🔗 Enlace del logo: {pagina_web}")
+                    except Exception as img_error:
+                        print(f"⚠️ Error dibujando logo (ReportLab): {img_error}")
+                        # Intentar con formato diferente
+                        try:
+                            canvas.drawImage(logo_path, logo_x, logo_y, width=80, height=40)
+                            print(f"✅ Logo dibujado (segundo intento)")
+                        except:
+                            print(f"❌ Error crítico con logo, usando fallback")
+                            self._dibujar_logo_fallback(canvas, logo_x, logo_y, empresa_info['nombre_empresa'])
+                else:
+                    print(f"⚠️ Archivo de logo vacío o corrupto: {logo_path}")
+                    self._dibujar_logo_fallback(canvas, 40, A4[1] - 80, empresa_info['nombre_empresa'])
+            else:
+                # Logo no encontrado, usar fallback
+                print("⚠️ Logo no encontrado en ninguna ruta, usando versión de fallback")
+                self._dibujar_logo_fallback(canvas, 40, A4[1] - 80, empresa_info['nombre_empresa'])
                 
-                # Dibujar logo
-                canvas.drawImage(logo_path, logo_x, logo_y, width=80, height=40)
-                
-                print(f"🔗 Logo con enlace a: {pagina_web}")
         except Exception as e:
-            print(f"❌ Error con logo: {e}")
+            print(f"❌ Error general con logo: {e}")
+            import traceback
+            traceback.print_exc()
+            self._dibujar_logo_fallback(canvas, 40, A4[1] - 80, empresa_info['nombre_empresa'])
         
         # 🔥 DATOS DE EMPRESA A LA DERECHA DEL LOGO (alineados)
         canvas.setFont('Helvetica', 9)
@@ -248,22 +407,22 @@ class PDFGenerator:
     def _build_items_section(self, presupuesto_data):
         """Construir sección de items del presupuesto"""
         elements = []
-       
+        
         # Título de sección
         section_title = Paragraph("DETALLE DEL PRESUPUESTO", self.styles['Heading2'])
         elements.append(section_title)
         elements.append(Spacer(1, 3))
-       
+        
         # Encabezado de la tabla
         items_header = ['Código', 'Descripción', 'Cant.', 'Precio Unit.', 'Subtotal']
         items_data = [items_header]
-       
+        
         # Procesar cada item
         for item in presupuesto_data.get('items', []):
             cantidad = item.get('cantidad', 0)
             precio_unitario = Decimal(str(item.get('precio_unitario', 0)))
             subtotal = cantidad * precio_unitario
-           
+            
             items_data.append([
                 item.get('codigo', ''),
                 item.get('descripcion', ''),
@@ -271,7 +430,7 @@ class PDFGenerator:
                 f"${precio_unitario:,.2f}",
                 f"${subtotal:,.2f}"
             ])
-       
+        
         # Crear tabla de items
         items_table = Table(items_data, colWidths=[70, 240, 40, 80, 80])
         items_table.setStyle(TableStyle([
@@ -282,41 +441,41 @@ class PDFGenerator:
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
             ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
-           
+            
             # Alineación
             ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
             ('ALIGN', (0, 1), (0, -1), 'CENTER'),
             ('ALIGN', (1, 1), (1, -1), 'LEFT'),
             ('ALIGN', (2, 1), (2, -1), 'CENTER'),
-           
+            
             # Bordes y grid
             ('BOX', (0, 0), (-1, -1), 1, colors.black),
             ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.grey),
-           
+            
             # Alternar colores de fila para mejor lectura
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8FAFC')]),
         ]))
         elements.append(items_table)
         elements.append(Spacer(1, 15))
-       
+        
         return elements
 
     def _build_totales_section(self, presupuesto_data):
         """Construir sección de totales"""
         elements = []
-   
+
         subtotal = Decimal(str(presupuesto_data.get('subtotal', 0)))
         iva_porcentaje = Decimal(str(presupuesto_data.get('iva_porcentaje', 21)))
         iva_valor = Decimal(str(presupuesto_data.get('iva_valor', 0)))
         total = Decimal(str(presupuesto_data.get('total', 0)))
-   
+
         totales_data = [
             ["", ""],
             ["SUBTOTAL:", f"${subtotal:,.2f}"],
             [f"IVA ({iva_porcentaje}%):", f"${iva_valor:,.2f}"],
             ["TOTAL:", f"${total:,.2f}"]
         ]
-   
+
         totales_table = Table(totales_data, colWidths=[250, 150])
         totales_table.setStyle(TableStyle([
             ('FONTSIZE', (0, 0), (-1, 0), 8),
@@ -336,7 +495,7 @@ class PDFGenerator:
         ]))
         elements.append(totales_table)
         elements.append(Spacer(1, 20))
-   
+
         return elements
 
     def _build_observaciones_section(self, presupuesto_data):
@@ -412,10 +571,14 @@ class PDFGenerator:
         """Construir pie de página con datos reales de la empresa"""
         canvas.saveState()
         
-        # 🔥 OBTENER DATOS REALES PARA EL FOOTER
+        # 🔥 OBTENER DATOS REALES PARA EL FOOTER (con página web real)
         empresa_info = self._obtener_datos_empresa_pdf()
         
-        footer_text = f"{empresa_info['nombre_empresa']} - Tel: {empresa_info['telefono']} - Email: {empresa_info['email']}"
+        # Construir texto del footer con página web real
+        if empresa_info['pagina_web'] and empresa_info['pagina_web'] != 'https://www.labservicios.com.ar':
+            footer_text = f"{empresa_info['nombre_empresa']} - {empresa_info['pagina_web']} - Tel: {empresa_info['telefono']}"
+        else:
+            footer_text = f"{empresa_info['nombre_empresa']} - Tel: {empresa_info['telefono']} - Email: {empresa_info['email']}"
         
         # Configurar el pie de página
         canvas.setFont('Helvetica', 8)
@@ -435,13 +598,13 @@ class PDFGenerator:
         """Obtener ruta para guardar el archivo"""
         root = tk.Tk()
         root.withdraw()
-       
+        
         numero = presupuesto_data.get('numero', '')
         cliente_nombre = cliente_data.get('nombre', '').replace(' ', '_')
         fecha = datetime.now().strftime('%Y%m%d_%H%M')
-       
+        
         default_name = f"Presupuesto_{numero}_{cliente_nombre}_{fecha}.pdf"
-       
+        
         return filedialog.asksaveasfilename(
             defaultextension=".pdf",
             filetypes=[("Archivos PDF", "*.pdf"), ("Todos los archivos", "*.*")],
@@ -534,9 +697,13 @@ class PDFGenerator:
             doc.build(story, onFirstPage=first_page, onLaterPages=other_pages)
             
             # Mostrar mensaje de éxito
+            empresa_info = self._obtener_datos_empresa_pdf()
             messagebox.showinfo(
                 "PDF Generado",
-                f"Presupuesto guardado como PDF:\nLogo con enlace a página web\n{os.path.basename(output_path)}"
+                f"✅ Presupuesto guardado como PDF:\n\n"
+                f"📄 Archivo: {os.path.basename(output_path)}\n"
+                f"🏢 Empresa: {empresa_info['nombre_empresa']}\n"
+                f"🌐 Página web en logo: {empresa_info['pagina_web']}"
             )
             
             # Abrir el PDF automáticamente
@@ -547,9 +714,10 @@ class PDFGenerator:
         except Exception as e:
             messagebox.showerror(
                 "Error al generar PDF",
-                f"No se pudo generar el PDF:\n{str(e)}"
+                f"❌ No se pudo generar el PDF:\n{str(e)}"
             )
             return None
+
 
 # Función de conveniencia para uso rápido
 def generar_presupuesto_pdf(presupuesto_data, cliente_data):
@@ -557,10 +725,11 @@ def generar_presupuesto_pdf(presupuesto_data, cliente_data):
     generator = PDFGenerator()
     return generator.generar_presupuesto(presupuesto_data, cliente_data)
 
+
 # Prueba del módulo
 if __name__ == "__main__":
     print("🧪 Probando generador de PDF...")
-   
+    
     # Datos de ejemplo
     ejemplo_presupuesto = {
         'numero': '999',
@@ -587,7 +756,7 @@ if __name__ == "__main__":
             }
         ]
     }
-   
+    
     ejemplo_cliente = {
         'nombre': 'Juan',
         'apellido': 'Pérez',
@@ -597,7 +766,7 @@ if __name__ == "__main__":
         'email': 'juan.perez@empresa.com',
         'direccion': 'Av. Siempre Viva 123, Neuquén'
     }
-   
+    
     # Probar generación
     resultado = generar_presupuesto_pdf(ejemplo_presupuesto, ejemplo_cliente)
     if resultado:
