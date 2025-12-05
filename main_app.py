@@ -764,12 +764,19 @@ class MainApp:
             "🚪 Cerrar Sesión",
             "¿Está seguro de que desea cerrar sesión?\n\nSe perderán los cambios no guardados."
         )
-       
+        
         if confirmacion:
             self.auth_manager.logout()
-            self.window.destroy()
-            from main import main
-            main()
+            
+            # En modo .exe, cerrar completamente
+            if getattr(sys, 'frozen', False):
+                self.window.quit()
+                sys.exit(0)
+            else:
+                # Solo en desarrollo, reiniciar
+                self.window.destroy()
+                from main import main
+                main()
    
     def on_closing(self):
         if messagebox.askokcancel(
