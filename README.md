@@ -193,7 +193,7 @@ Push a la rama
 Abre un Pull Request
 
 📞 Contacto
-Autor: huguitor
+Autor: Hugo Panozo Tel: 2995214846
 
 Repositorio: https://github.com/huguitor/app_servicios_frontend
 
