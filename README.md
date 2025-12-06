@@ -1,34 +1,3 @@
-📁 ESTRUCTURA PARA REPOSITORIO FRONTEND:
-text
-app_servicios_frontend/          # Nuevo repo para Tkinter
-├── app_escritorio/              # Tu código actual
-│   ├── *.py                     # Todos tus archivos Python
-│   ├── build_tkinter.py         # Script de compilación
-│   └── requirements.txt         # Dependencias
-├── docs/                        # Documentación
-│   ├── INSTALACION.md
-│   ├── USO.md
-│   └── COMPILACION.md
-├── scripts/                     # Scripts útiles
-│   ├── launch.bat
-│   ├── build.bat
-│   └── install_deps.bat
-├── .gitignore                   # Archivos a ignorar
-├── README.md                    # Documentación principal
-├── LICENSE                      # Licencia MIT
-└── CHANGELOG.md                 # Historial de cambios
-🚀 PASO 3: CREAR ESTRUCTURA COMPLETA
-1. Crear carpeta base y organizar:
-bash
-# Crear carpeta principal
-mkdir app_servicios_frontend
-cd app_servicios_frontend
-
-# Crear estructura adicional
-mkdir docs scripts
-2. Crear archivos de documentación:
-A) README.md (en raíz):
-
 markdown
 # 🖥️ Lab Servicios - App de Escritorio (Tkinter)
 
