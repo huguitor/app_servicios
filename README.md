@@ -24,9 +24,6 @@ bash
 mkdir app_servicios_frontend
 cd app_servicios_frontend
 
-# Copiar tu app Tkinter (desde donde la tienes)
-xcopy "C:\Users\panoz\Documents\Proyectos_tkinter\gestion_t\app_escritorio\*" "app_escritorio\" /E /I
-
 # Crear estructura adicional
 mkdir docs scripts
 2. Crear archivos de documentación:
