@@ -21,6 +21,11 @@ class ProveedoresWindow:
         # Crear ventana
         self.window = tk.Toplevel(parent)
         self.window.title("Gestión de Proveedores - Lab Servicios")
+        
+        # Color coding
+        module_color = Styles.get_module_style("proveedores")
+        self.header_strip = tk.Frame(self.window, bg=module_color, height=5)
+        self.header_strip.pack(fill=tk.X, side=tk.TOP)
        
         # USAR 80% DEL ANCHO DE PANTALLA
         screen_width = self.window.winfo_screenwidth()
@@ -351,6 +356,11 @@ class FormularioProveedor:
         # Crear ventana
         self.window = tk.Toplevel(parent)
         self.window.title("Nuevo Proveedor" if self.es_nuevo else "Editar Proveedor")
+        
+        # Color coding
+        module_color = Styles.get_module_style("proveedores")
+        self.header_strip = tk.Frame(self.window, bg=module_color, height=5)
+        self.header_strip.pack(fill=tk.X, side=tk.TOP)
         self.window.geometry("500x550")  # Un poco más bajo que clientes (sin apellido)
         self.window.transient(parent)
         self.window.grab_set()

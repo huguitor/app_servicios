@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from configuracion_manager import ConfiguracionManager
+from styles import Styles
 import os
 from PIL import Image, ImageTk
 
@@ -13,6 +14,11 @@ class ConfiguracionWindow:
         # Crear ventana
         self.window = tk.Toplevel(parent)
         self.window.title("Configuración del Sistema")
+
+        # Color coding
+        module_color = Styles.get_module_style("configuracion")
+        self.header_strip = tk.Frame(self.window, bg=module_color, height=5)
+        self.header_strip.pack(fill=tk.X, side=tk.TOP)
         self.window.geometry("900x750")  # Aumentada para nuevo campo
         self.window.transient(parent)
         self.window.grab_set()

@@ -14,6 +14,7 @@ from image_helper import ImageHelper
 import tempfile
 import requests
 from api_client import APIClient
+from styles import Styles
 
 class ProductosWindow:
     def __init__(self, parent):
@@ -39,6 +40,11 @@ class ProductosWindow:
         # Crear ventana
         self.window = tk.Toplevel(parent)
         self.window.title("Gestión de Productos - Lab Servicios")
+
+        # Color coding
+        module_color = Styles.get_module_style("productos")
+        self.header_strip = tk.Frame(self.window, bg=module_color, height=5)
+        self.header_strip.pack(fill=tk.X, side=tk.TOP)
        
         # USAR 90% DEL ANCHO DE PANTALLA
         screen_width = self.window.winfo_screenwidth()
@@ -508,6 +514,11 @@ class FormularioProducto:
         # Crear ventana
         self.window = tk.Toplevel(parent)
         self.window.title("Nuevo Producto" if self.es_nuevo else "Editar Producto")
+        
+        # Color coding
+        module_color = Styles.get_module_style("productos")
+        self.header_strip = tk.Frame(self.window, bg=module_color, height=5)
+        self.header_strip.pack(fill=tk.X, side=tk.TOP)
         self.window.geometry("800x700")
         self.window.transient(parent)
         self.window.grab_set()

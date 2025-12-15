@@ -12,6 +12,7 @@ from marcas_window import MarcasWindow
 from productos_window import ProductosWindow
 from servicios_window import ServiciosWindow
 from presupuestos_window import PresupuestosWindow
+from remitos_window import RemitosWindow  # <-- NUEVA IMPORTACIÓN
 import os
 from PIL import Image, ImageTk
 import sys
@@ -25,12 +26,13 @@ from marcas_manager import MarcasManager
 from productos_manager import ProductosManager
 from servicios_manager import ServiciosManager
 from presupuestos_manager import PresupuestosManager
+from remitos_manager import RemitosManager  # <-- NUEVA IMPORTACIÓN
 
 class MainApp:
     def __init__(self):
         self.auth_manager = AuthManager()
         self.window = tk.Tk()
-       
+        
         # Inicializar managers para obtener datos reales
         self.clientes_manager = ClientesManager()
         self.proveedores_manager = ProveedoresManager()
@@ -40,32 +42,33 @@ class MainApp:
         self.productos_manager = ProductosManager()
         self.servicios_manager = ServiciosManager()
         self.presupuestos_manager = PresupuestosManager()
-       
+        self.remitos_manager = RemitosManager()  # <-- NUEVO MANAGER
+        
         self.setup_window()
         self.set_icon()
         self.set_theme()
         self.create_menu()
         self.create_main_frame()
-   
+    
     def setup_window(self):
         self.window.title("Sistema de Gestión Comercial")
-       
+        
         # OBTENER DIMENSIONES DE LA PANTALLA Y USAR TODO EL ANCHO
         screen_width = self.window.winfo_screenwidth()
         screen_height = self.window.winfo_screenheight()
-       
+        
         # Usar 95% del ancho de pantalla y 90% del alto
         window_width = int(screen_width * 0.95)
         window_height = int(screen_height * 0.90)
-       
+        
         self.window.geometry(f"{window_width}x{window_height}")
         self.window.minsize(1000, 600)
-       
+        
         # Centrar ventana
         x = (screen_width - window_width) // 2
         y = (screen_height - window_height) // 2
         self.window.geometry(f"+{x}+{y}")
-       
+        
         # Hacer ventana maximizada
         try:
             self.window.state('zoomed')
@@ -74,18 +77,18 @@ class MainApp:
                 self.window.attributes('-zoomed', True)
             except:
                 pass
-       
+        
         # Manejar cierre de ventana
         self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
         self.fullscreen = False
-       
+        
         # Forzar actualización de la ventana
         self.window.update_idletasks()
-   
+    
     def set_icon(self):
         """Método MEJORADO para configurar el icono - Eliminar la pluma de Tkinter"""
         print("🔄 Configurando icono de la aplicación...")
-       
+        
         # Lista priorizada de iconos (empezar con ICO para Windows)
         icon_paths = [
             "logo_lab.ico",           # ICO - Mejor para Windows
@@ -103,47 +106,47 @@ class MainApp:
             "assets/logo_lab.ico",
             "assets/logo_lab.png"
         ]
-       
+        
         icon_loaded = False
-       
+        
         for icon_path in icon_paths:
             if os.path.exists(icon_path):
                 try:
                     print(f"🔍 Intentando cargar: {icon_path}")
-                   
+                    
                     if icon_path.lower().endswith('.ico'):
                         # Método para ICO (más confiable en Windows)
                         self.window.iconbitmap(icon_path)
                         print(f"✅ Icono ICO cargado: {icon_path}")
                         icon_loaded = True
                         break
-                       
+                        
                     elif icon_path.lower().endswith('.png'):
                         # Método para PNG
                         img = Image.open(icon_path)
                         photo = ImageTk.PhotoImage(img)
-                       
+                        
                         # Múltiples intentos para asegurar que se aplique
                         self.window.iconphoto(True, photo)
                         self.window.iconphoto(False, photo)
-                       
+                        
                         # Guardar referencia para evitar garbage collection
                         if not hasattr(self, '_icon_photo'):
                             self._icon_photo = photo
-                           
+                            
                         print(f"✅ Icono PNG cargado: {icon_path}")
                         icon_loaded = True
                         break
-                       
+                        
                 except Exception as e:
                     print(f"❌ Error cargando {icon_path}: {e}")
                     continue
-       
+        
         if not icon_loaded:
             print("⚠️ No se pudo cargar ningún icono personalizado")
             # Intentar método alternativo para eliminar icono por defecto
             self._remove_default_icon()
-   
+    
     def _remove_default_icon(self):
         """Intentar eliminar el icono por defecto de Tkinter"""
         try:
@@ -157,20 +160,20 @@ class MainApp:
             else:
                 # macOS
                 pass
-               
+                
             print("🔧 Icono por defecto removido")
         except:
             print("⚠️ No se pudo remover el icono por defecto")
-   
+    
     def set_theme(self):
         """Configurar el tema de Tkinter"""
         try:
             style = ttk.Style()
             available_themes = style.theme_names()
-           
+            
             # Preferir temas más modernos
             preferred_themes = ['vista', 'clam', 'alt', 'default']
-           
+            
             for theme in preferred_themes:
                 if theme in available_themes:
                     style.theme_use(theme)
@@ -178,7 +181,7 @@ class MainApp:
                     break
             else:
                 style.theme_use(available_themes[0] if available_themes else 'default')
-               
+                
         except Exception as e:
             print(f"❌ Error configurando tema: {e}")
 
@@ -187,22 +190,22 @@ class MainApp:
         try:
             # Obtener todos los presupuestos
             presupuestos = self.presupuestos_manager.obtener_presupuestos()
-           
+            
             # Contadores por estado
             total = len(presupuestos)
             borrador = 0
             enviado = 0
             aceptado = 0
             rechazado = 0
-           
+            
             # Calcular totales
             subtotal_total = 0
             iva_total = 0
             total_general = 0
-           
+            
             for presupuesto in presupuestos:
                 estado = presupuesto.get('estado', 'borrador')
-               
+                
                 if estado == 'borrador':
                     borrador += 1
                 elif estado == 'enviado':
@@ -211,15 +214,15 @@ class MainApp:
                     aceptado += 1
                 elif estado == 'rechazado':
                     rechazado += 1
-               
+                
                 # Acumular montos
                 subtotal_total += float(presupuesto.get('subtotal', 0))
                 iva_total += float(presupuesto.get('iva_valor', 0))
                 total_general += float(presupuesto.get('total', 0))
-           
+            
             # Calcular tasa de conversión
             tasa_conversion = (aceptado / total * 100) if total > 0 else 0
-           
+            
             return {
                 "total": total,
                 "borrador": borrador,
@@ -244,6 +247,61 @@ class MainApp:
                 "iva_total": 0,
                 "total_general": 0
             }
+    
+    def get_remitos_stats(self):
+        """Obtener estadísticas detalladas de remitos"""
+        try:
+            # Obtener todos los remitos
+            remitos = self.remitos_manager.obtener_remitos()
+            
+            # Contadores por estado
+            total = len(remitos)
+            borrador = 0
+            pendiente = 0
+            entregado = 0
+            anulado = 0
+            
+            # Calcular total de items
+            items_total = 0
+            
+            for remito in remitos:
+                estado = remito.get('estado', 'borrador')
+                
+                if estado == 'borrador':
+                    borrador += 1
+                elif estado == 'pendiente':
+                    pendiente += 1
+                elif estado == 'entregado':
+                    entregado += 1
+                elif estado == 'anulado':
+                    anulado += 1
+                
+                # Acumular items
+                items_total += len(remito.get('items', []))
+            
+            # Calcular porcentaje de entregados
+            porcentaje_entregados = (entregado / total * 100) if total > 0 else 0
+            
+            return {
+                "total": total,
+                "borrador": borrador,
+                "pendiente": pendiente,
+                "entregado": entregado,
+                "anulado": anulado,
+                "porcentaje_entregados": round(porcentaje_entregados, 1),
+                "items_total": items_total
+            }
+        except Exception as e:
+            print(f"❌ Error obteniendo estadísticas de remitos: {e}")
+            return {
+                "total": 0,
+                "borrador": 0,
+                "pendiente": 0,
+                "entregado": 0,
+                "anulado": 0,
+                "porcentaje_entregados": 0,
+                "items_total": 0
+            }
 
     def get_real_stats(self):
         """Obtener estadísticas reales de la base de datos"""
@@ -256,7 +314,7 @@ class MainApp:
             marcas = self.marcas_manager.obtener_marcas()
             productos = self.productos_manager.obtener_productos()
             servicios = self.servicios_manager.obtener_servicios()
-           
+            
             # Filtrar solo los activos
             clientes_activos = [c for c in clientes if c.get('activo', True)]
             proveedores_activos = [p for p in proveedores if p.get('activo', True)]
@@ -265,10 +323,13 @@ class MainApp:
             marcas_activas = [m for m in marcas if m.get('activo', True)]
             productos_activos = [p for p in productos if p.get('activo', True)]
             servicios_activos = [s for s in servicios if s.get('activo', True)]
-           
+            
             # Obtener estadísticas de presupuestos
             presupuestos_stats = self.get_presupuestos_stats()
-           
+            
+            # Obtener estadísticas de remitos
+            remitos_stats = self.get_remitos_stats()
+            
             return {
                 "clientes": len(clientes_activos),
                 "proveedores": len(proveedores_activos),
@@ -277,7 +338,8 @@ class MainApp:
                 "marcas": len(marcas_activas),
                 "productos": len(productos_activos),
                 "servicios": len(servicios_activos),
-                "presupuestos": presupuestos_stats
+                "presupuestos": presupuestos_stats,
+                "remitos": remitos_stats
             }
         except Exception as e:
             print(f"❌ Error obteniendo estadísticas reales: {e}")
@@ -300,12 +362,21 @@ class MainApp:
                     "subtotal_total": 0,
                     "iva_total": 0,
                     "total_general": 0
+                },
+                "remitos": {
+                    "total": 0,
+                    "borrador": 0,
+                    "pendiente": 0,
+                    "entregado": 0,
+                    "anulado": 0,
+                    "porcentaje_entregados": 0,
+                    "items_total": 0
                 }
             }
-   
+    
     def create_menu(self):
         menubar = tk.Menu(self.window)
-       
+        
         # Menú Archivo
         file_menu = tk.Menu(menubar, tearoff=0)
         file_menu.add_command(label="📊 Dashboard", command=self.show_dashboard)
@@ -315,8 +386,8 @@ class MainApp:
         file_menu.add_command(label="🚪 Cerrar Sesión", command=self.logout)
         file_menu.add_command(label="❌ Salir", command=self.on_closing)
         menubar.add_cascade(label="📁 Archivo", menu=file_menu)
-       
-        # Menú Gestión
+        
+        # Menú Gestión - MODIFICADO para incluir REMITOS
         management_menu = tk.Menu(menubar, tearoff=0)
         management_menu.add_command(label="👥 Clientes", command=self.show_clientes)
         management_menu.add_command(label="🏢 Proveedores", command=self.show_proveedores)
@@ -329,6 +400,7 @@ class MainApp:
         management_menu.add_command(label="🏷️ Marcas", command=self.show_marcas)
         management_menu.add_separator()
         management_menu.add_command(label="💰 Presupuestos", command=self.show_presupuestos)
+        management_menu.add_command(label="📋 Remitos", command=self.show_remitos)  # <-- NUEVO ITEM
         menubar.add_cascade(label="📊 Gestión", menu=management_menu)
         
         # Menú Configuración
@@ -343,20 +415,21 @@ class MainApp:
         window_menu.add_separator()
         window_menu.add_command(label="🔄 Actualizar", command=self.refresh_app)
         menubar.add_cascade(label="🪟 Ventana", menu=window_menu)
-       
+        
         self.window.config(menu=menubar)
-       
+        
         # Atajos de teclado
         self.window.bind('<F11>', lambda e: self.toggle_fullscreen())
         self.window.bind('<Escape>', lambda e: self.exit_fullscreen())
         self.window.bind('<F5>', lambda e: self.refresh_app())
         self.window.bind('<Control-n>', lambda e: self.show_clientes())
-   
+        self.window.bind('<Control-r>', lambda e: self.show_remitos())  # <-- NUEVO ATAJO
+    
     def create_main_frame(self):
         # Frame principal
         self.main_frame = ttk.Frame(self.window)
         self.main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-       
+        
         # Mostrar dashboard por defecto
         self.show_dashboard()
 
@@ -366,6 +439,7 @@ class MainApp:
         # Obtener estadísticas reales
         stats = self.get_real_stats()
         presupuestos_stats = stats["presupuestos"]
+        remitos_stats = stats["remitos"]
 
         # Frame principal con scroll para asegurar que todo sea visible
         main_canvas = tk.Canvas(self.main_frame)
@@ -412,7 +486,7 @@ class MainApp:
         # Usar configuración dinámica o valores por defecto
         nombre_fantasia = config_login.get('nombre_fantasia', 'Servicios')
         descripcion_sistema = config_login.get('descripcion_sistema', 'Sistema de Gestión Integral')
-        
+
         # Título principal - CENTRADO Y DINÁMICO
         ttk.Label(scrollable_frame, text=f"🔧 {nombre_fantasia}",
                 font=("Arial", 20, "bold"), foreground="#2c3e50").pack(pady=15)
@@ -458,9 +532,9 @@ class MainApp:
         presupuestos_title_frame.pack(pady=(20, 8), fill=tk.X)
         
         presupuestos_label = ttk.Label(
-            presupuestos_title_frame, 
+            presupuestos_title_frame,
             text="💰 Gestión de Presupuestos",
-            font=("Arial", 14, "bold"), 
+            font=("Arial", 14, "bold"),
             foreground="#2c3e50",
             cursor="hand2"
         )
@@ -507,10 +581,10 @@ class MainApp:
                     
                     # Crear tarjeta MÁS PEQUEÑA para consistencia
                     stat_card = self.create_presupuesto_stat_card(
-                        row_frame, 
-                        title, 
-                        value, 
-                        color, 
+                        row_frame,
+                        title,
+                        value,
+                        color,
                         "presupuestos",
                         tooltip
                     )
@@ -533,6 +607,70 @@ class MainApp:
             for i, (title, value, color) in enumerate(financiero_data):
                 fin_card = self.create_stat_card(financiero_frame, title, value, color, "presupuestos")
                 fin_card.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
+
+        # ========== SECCIÓN DE REMITOS ==========
+        if remitos_stats["total"] > 0:
+            # Título clickable para remitos
+            remitos_title_frame = ttk.Frame(scrollable_frame)
+            remitos_title_frame.pack(pady=(20, 8), fill=tk.X)
+            
+            remitos_label = ttk.Label(
+                remitos_title_frame,
+                text="📋 Gestión de Remitos",
+                font=("Arial", 14, "bold"),
+                foreground="#2c3e50",
+                cursor="hand2"
+            )
+            remitos_label.pack()
+            
+            # Tooltip para el título
+            tooltip_label = ttk.Label(
+                remitos_title_frame,
+                text="💡 Haz click aquí para ir directamente a Remitos",
+                font=("Arial", 7),
+                foreground="#95a5a6"
+            )
+            tooltip_label.pack(pady=(1, 0))
+            
+            # Bind del evento click al título
+            remitos_label.bind("<Button-1>", lambda e: self.show_remitos())
+            remitos_label.bind("<Enter>", lambda e: remitos_label.configure(foreground="#2980b9"))
+            remitos_label.bind("<Leave>", lambda e: remitos_label.configure(foreground="#2c3e50"))
+            
+            # Frame para remitos
+            remitos_frame = ttk.Frame(scrollable_frame)
+            remitos_frame.pack(pady=8, fill=tk.X)
+            
+            remitos_data = [
+                ("📋 Total", str(remitos_stats["total"]), "#2c3e50"),
+                ("📝 Borrador", str(remitos_stats["borrador"]), "#f39c12"),
+                ("⏳ Pendiente", str(remitos_stats["pendiente"]), "#3498db"),
+                ("✅ Entregado", str(remitos_stats["entregado"]), "#27ae60"),
+                ("❌ Anulado", str(remitos_stats["anulado"]), "#e74c3c"),
+                ("📦 Items", str(remitos_stats["items_total"]), "#9b59b6"),
+            ]
+            
+            # Crear 2 filas con 3 columnas cada una
+            for row_index in range(2):  # 2 filas
+                row_frame = ttk.Frame(remitos_frame)
+                row_frame.pack(fill=tk.X, pady=3)
+                
+                # 3 recuadros por fila
+                for col_index in range(3):
+                    index = row_index * 3 + col_index
+                    if index < len(remitos_data):
+                        title, value, color = remitos_data[index]
+                        
+                        # Crear tarjeta
+                        stat_card = self.create_presupuesto_stat_card(
+                            row_frame,
+                            title,
+                            value,
+                            color,
+                            "remitos",
+                            f"Estadística de remitos"
+                        )
+                        stat_card.pack(side=tk.LEFT, padx=5, fill=tk.BOTH, expand=True)
 
         # Actualizar el scrollable frame
         main_canvas.update_idletasks()
@@ -562,20 +700,20 @@ class MainApp:
         
         # Contenido de la tarjeta - MÁS COMPACTO
         value_label = ttk.Label(
-            content_frame, 
-            text=value, 
+            content_frame,
+            text=value,
             font=("Arial", 14, "bold"),  # 🔥 TEXTO MÁS PEQUEÑO
-            foreground=color, 
+            foreground=color,
             background="white",
             wraplength=100
         )
         value_label.pack(pady=(2, 1))
         
         title_label = ttk.Label(
-            content_frame, 
-            text=title, 
+            content_frame,
+            text=title,
             font=("Arial", 8),  # 🔥 TEXTO MÁS PEQUEÑO
-            foreground="#7f8c8d", 
+            foreground="#7f8c8d",
             background="white",
             wraplength=100
         )
@@ -615,20 +753,20 @@ class MainApp:
         
         # Contenido de la tarjeta - MEJOR FORMATEADO
         value_label = ttk.Label(
-            content_frame, 
-            text=value, 
+            content_frame,
+            text=value,
             font=("Arial", 16, "bold"),
-            foreground=color, 
+            foreground=color,
             background="white",
             justify=tk.CENTER
         )
         value_label.pack(pady=(5, 3))
         
         title_label = ttk.Label(
-            content_frame, 
-            text=title, 
+            content_frame,
+            text=title,
             font=("Arial", 9),
-            foreground="#7f8c8d", 
+            foreground="#7f8c8d",
             background="white",
             justify=tk.CENTER,
             wraplength=100
@@ -668,7 +806,8 @@ class MainApp:
             "marcas": self.show_marcas,
             "productos": self.show_productos,
             "servicios": self.show_servicios,
-            "presupuestos": self.show_presupuestos
+            "presupuestos": self.show_presupuestos,
+            "remitos": self.show_remitos  # <-- NUEVO COMANDO
         }
         
         if command in command_map:
@@ -678,34 +817,38 @@ class MainApp:
     def show_impuestos(self):
         """Abrir ventana de gestión de impuestos"""
         ImpuestosWindow(self.window)
-   
+    
     def show_categorias(self):
         """Abrir ventana de gestión de categorías"""
         CategoriasWindow(self.window)
-   
+    
     def show_marcas(self):
         """Abrir ventana de gestión de marcas"""
         MarcasWindow(self.window)
-   
+    
     def show_clientes(self):
         """Abrir ventana de gestión de clientes"""
         ClientesWindow(self.window)
-   
+    
     def show_proveedores(self):
         """Abrir ventana de gestión de proveedores"""
         ProveedoresWindow(self.window)
-   
+    
     def show_productos(self):
         """Abrir ventana de gestión de productos"""
         ProductosWindow(self.window)
-   
+    
     def show_servicios(self):
         """Abrir ventana de gestión de servicios"""
         ServiciosWindow(self.window)
-   
+    
     def show_presupuestos(self):
         """Abrir ventana de gestión de presupuestos"""
         PresupuestosWindow(self.window)
+    
+    def show_remitos(self):
+        """Abrir ventana de gestión de remitos - NUEVO MÉTODO"""
+        RemitosWindow(self.window)
 
     def show_configuracion(self):
         """Abrir ventana de configuración del sistema"""
@@ -717,11 +860,11 @@ class MainApp:
     def clear_main_frame(self):
         for widget in self.main_frame.winfo_children():
             widget.destroy()
-   
+    
     def toggle_fullscreen(self):
         self.fullscreen = not self.fullscreen
         self.window.attributes('-fullscreen', self.fullscreen)
-       
+        
         if not self.fullscreen:
             screen_width = self.window.winfo_screenwidth()
             screen_height = self.window.winfo_screenheight()
@@ -730,12 +873,12 @@ class MainApp:
             x = (screen_width - window_width) // 2
             y = (screen_height - window_height) // 2
             self.window.geometry(f"{window_width}x{window_height}+{x}+{y}")
-   
+    
     def exit_fullscreen(self):
         if self.fullscreen:
             self.window.attributes('-fullscreen', False)
             self.fullscreen = False
-   
+    
     def normal_size(self):
         screen_width = self.window.winfo_screenwidth()
         screen_height = self.window.winfo_screenheight()
@@ -745,7 +888,7 @@ class MainApp:
         y = (screen_height - window_height) // 2
         self.window.geometry(f"{window_width}x{window_height}+{x}+{y}")
         self.exit_fullscreen()
-   
+    
     def maximize_window(self):
         try:
             self.window.state('zoomed')
@@ -754,11 +897,11 @@ class MainApp:
                 self.window.attributes('-zoomed', True)
             except:
                 pass
-   
+    
     def refresh_app(self):
         self.show_dashboard()
         messagebox.showinfo("Actualizar", "✅ Aplicación actualizada")
-   
+    
     def logout(self):
         confirmacion = messagebox.askyesno(
             "🚪 Cerrar Sesión",
@@ -777,13 +920,13 @@ class MainApp:
                 self.window.destroy()
                 from main import main
                 main()
-   
+    
     def on_closing(self):
         if messagebox.askokcancel(
             "❌ Salir del Sistema",
             "¿Está seguro de que desea salir del sistema?\n\nAsegúrese de haber guardado todos los cambios."
         ):
             self.window.quit()
-   
+    
     def run(self):
         self.window.mainloop()

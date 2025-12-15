@@ -20,6 +20,18 @@ class Config:
     SUCCESS_COLOR = "#27ae60"
     WARNING_COLOR = "#e67e22"
     DANGER_COLOR = "#e74c3c"
+
+    # Module Colors
+    MODULE_COLORS = {
+        "presupuestos": "#3498db",  # Azul
+        "clientes": "#27ae60",      # Verde
+        "productos": "#e67e22",     # Naranja
+        "servicios": "#9b59b6",     # Violeta
+        "proveedores": "#16a085",   # Teal
+        "configuracion": "#7f8c8d", # Gris
+        "remitos": "#e74c3c",       # Rojo
+        "default": PRIMARY_COLOR
+    }
     
     @classmethod
     def get_api_url(cls, endpoint):

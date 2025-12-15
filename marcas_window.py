@@ -2,6 +2,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from marcas_manager import MarcasManager
+from styles import Styles
 import os
 from PIL import Image, ImageTk
 
@@ -20,6 +21,11 @@ class MarcasWindow:
         # Crear ventana
         self.window = tk.Toplevel(parent)
         self.window.title("Gestión de Marcas - Lab Servicios")
+        
+        # Color coding
+        module_color = Styles.get_module_style("configuracion")
+        self.header_strip = tk.Frame(self.window, bg=module_color, height=5)
+        self.header_strip.pack(fill=tk.X, side=tk.TOP)
        
         # USAR 80% DEL ANCHO DE PANTALLA
         screen_width = self.window.winfo_screenwidth()
@@ -284,6 +290,11 @@ class FormularioMarca:
         # Crear ventana
         self.window = tk.Toplevel(parent)
         self.window.title("Nueva Marca" if self.es_nuevo else "Editar Marca")
+        
+        # Color coding
+        module_color = Styles.get_module_style("configuracion")
+        self.header_strip = tk.Frame(self.window, bg=module_color, height=5)
+        self.header_strip.pack(fill=tk.X, side=tk.TOP)
         self.window.geometry("500x400")
         self.window.transient(parent)
         self.window.grab_set()

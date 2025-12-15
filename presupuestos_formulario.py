@@ -20,7 +20,9 @@ except ImportError:
     print("⚠️ tkcalendar no disponible. Usando campo de texto para fechas.")
 
 # 🔥 IMPORTAR EL DIÁLOGO DE ANULACIÓN
+# 🔥 IMPORTAR EL DIÁLOGO DE ANULACIÓN
 from dialogo_anular_presupuesto import DialogoAnularPresupuesto
+from styles import Styles
 
 
 class DialogoSeleccionProducto:
@@ -230,6 +232,11 @@ class FormularioPresupuesto:
             self.window.title("🆕 Nuevo Presupuesto")
         else:
             self.window.title("✏️ Editar Presupuesto")
+            
+        # Color coding
+        module_color = Styles.get_module_style("presupuestos")
+        self.header_strip = tk.Frame(self.window, bg=module_color, height=5)
+        self.header_strip.pack(fill=tk.X, side=tk.TOP)
             
         self.window.geometry("900x700")
         self.window.transient(parent)

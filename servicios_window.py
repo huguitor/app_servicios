@@ -5,6 +5,7 @@ from servicios_manager import ServiciosManager
 from categorias_manager import CategoriasManager
 from impuestos_manager import ImpuestosManager
 from categorias_window import CategoriasWindow
+from styles import Styles
 import os
 from PIL import Image, ImageTk
 import json
@@ -27,6 +28,11 @@ class ServiciosWindow:
         # Crear ventana
         self.window = tk.Toplevel(parent)
         self.window.title("Gestión de Servicios - Lab Servicios")
+        
+        # Color coding
+        module_color = Styles.get_module_style("servicios")
+        self.header_strip = tk.Frame(self.window, bg=module_color, height=5)
+        self.header_strip.pack(fill=tk.X, side=tk.TOP)
         
         # USAR 90% DEL ANCHO DE PANTALLA
         screen_width = self.window.winfo_screenwidth()
@@ -392,6 +398,11 @@ class FormularioServicio:
         # Crear ventana
         self.window = tk.Toplevel(parent)
         self.window.title("Nuevo Servicio" if self.es_nuevo else "Editar Servicio")
+        
+        # Color coding
+        module_color = Styles.get_module_style("servicios")
+        self.header_strip = tk.Frame(self.window, bg=module_color, height=5)
+        self.header_strip.pack(fill=tk.X, side=tk.TOP)
         self.window.geometry("600x600")  # Ventana más pequeña sin marcas
         self.window.transient(parent)
         self.window.grab_set()

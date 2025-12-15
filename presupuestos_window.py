@@ -10,7 +10,9 @@ from PIL import Image, ImageTk
 from presupuestos_formulario import FormularioPresupuesto
 from pdf_generator import generar_presupuesto_pdf
 from dialogo_adjunto import DialogoAdjunto
+from dialogo_adjunto import DialogoAdjunto
 from dialogo_anular_presupuesto import DialogoAnularPresupuesto
+from styles import Styles
 
 class PresupuestosWindow:
     def __init__(self, parent):
@@ -33,6 +35,11 @@ class PresupuestosWindow:
         # Crear ventana
         self.window = tk.Toplevel(parent)
         self.window.title("Gestión de Presupuestos - Lab Servicios")
+        
+        # Color coding
+        module_color = Styles.get_module_style("presupuestos")
+        self.header_strip = tk.Frame(self.window, bg=module_color, height=5)
+        self.header_strip.pack(fill=tk.X, side=tk.TOP)
        
         # USAR 90% DEL ANCHO DE PANTALLA
         screen_width = self.window.winfo_screenwidth()

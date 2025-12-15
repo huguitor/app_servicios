@@ -20,6 +20,11 @@ class ClientesWindow:
         # Crear ventana
         self.window = tk.Toplevel(parent)
         self.window.title("Gestión de Clientes - Lab Servicios")
+
+        # Color coding
+        module_color = Styles.get_module_style("clientes")
+        self.header_strip = tk.Frame(self.window, bg=module_color, height=5)
+        self.header_strip.pack(fill=tk.X, side=tk.TOP)
        
         # USAR 80% DEL ANCHO DE PANTALLA
         screen_width = self.window.winfo_screenwidth()
@@ -357,6 +362,11 @@ class FormularioCliente:
         # Crear ventana
         self.window = tk.Toplevel(parent)
         self.window.title("Nuevo Cliente" if self.es_nuevo else "Editar Cliente")
+        
+        # Color coding
+        module_color = Styles.get_module_style("clientes")
+        self.header_strip = tk.Frame(self.window, bg=module_color, height=5)
+        self.header_strip.pack(fill=tk.X, side=tk.TOP)
         self.window.geometry("500x600")
         self.window.transient(parent)
         self.window.grab_set()

@@ -58,3 +58,8 @@ class Styles:
             "bg": cls.BG_SECONDARY,
             "fg": cls.TEXT_SECONDARY
         }
+
+    @classmethod
+    def get_module_style(cls, module_name):
+        """Obtiene el color primario para un módulo específico"""
+        return Config.MODULE_COLORS.get(module_name, Config.MODULE_COLORS["default"])

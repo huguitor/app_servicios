@@ -2,6 +2,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from impuestos_manager import ImpuestosManager
+from styles import Styles
 import os
 from PIL import Image, ImageTk
 
@@ -16,6 +17,11 @@ class ImpuestosWindow:
         # Crear ventana
         self.window = tk.Toplevel(parent)
         self.window.title("Gestión de Impuestos - Lab Servicios")
+        
+        # Color coding
+        module_color = Styles.get_module_style("configuracion")
+        self.header_strip = tk.Frame(self.window, bg=module_color, height=5)
+        self.header_strip.pack(fill=tk.X, side=tk.TOP)
        
         # USAR 80% DEL ANCHO DE PANTALLA
         screen_width = self.window.winfo_screenwidth()
@@ -255,6 +261,11 @@ class FormularioImpuesto:
         # Crear ventana
         self.window = tk.Toplevel(parent)
         self.window.title("Nuevo Impuesto" if self.es_nuevo else "Editar Impuesto")
+        
+        # Color coding
+        module_color = Styles.get_module_style("configuracion")
+        self.header_strip = tk.Frame(self.window, bg=module_color, height=5)
+        self.header_strip.pack(fill=tk.X, side=tk.TOP)
         # Aumentar tamaño para incluir display_name
         self.window.geometry("450x380")
         self.window.transient(parent)
